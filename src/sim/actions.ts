@@ -24,7 +24,7 @@ import { ensureLoot } from './loot';
 import { douse } from './fire';
 import { computeEnv, shelterAt } from './environment';
 
-export type Anim = 'work' | 'eat' | 'sleep' | 'idle' | 'sit' | 'fish';
+export type Anim = 'work' | 'chop' | 'crouch' | 'eat' | 'sleep' | 'idle' | 'sit' | 'fish';
 
 export interface ActionDef {
   anim: Anim;
@@ -97,7 +97,7 @@ const yieldMul = (c: Character, s: SkillId) => 0.75 + skillLevel(c, s) * 0.08;
 
 export const ACTIONS: Record<string, ActionDef> = {
   chop: {
-    anim: 'work', exertion: 2.6, label: 'Chopping', fastForward: true,
+    anim: 'chop', exertion: 2.6, label: 'Chopping', fastForward: true,
     tick: (game, c, a) => {
       if (a.elapsed % 1 < 0.2) game.bus.emit('sound', { id: 'chop', x: c.x, y: c.y });
       return !!game.state.objects[a.targetId!];
@@ -120,7 +120,7 @@ export const ACTIONS: Record<string, ActionDef> = {
     },
   },
   gather: {
-    anim: 'work', exertion: 1.8, label: 'Gathering', fastForward: true,
+    anim: 'crouch', exertion: 1.8, label: 'Gathering', fastForward: true,
     tick: (game, _c, a) => !!game.state.objects[a.targetId!],
     complete: (game, c, a) => {
       const o = game.state.objects[a.targetId!];
@@ -128,7 +128,7 @@ export const ACTIONS: Record<string, ActionDef> = {
     },
   },
   search: {
-    anim: 'work', exertion: 1.3, label: 'Searching',
+    anim: 'crouch', exertion: 1.3, label: 'Searching',
     tick: (game, _c, a) => !!game.state.objects[a.targetId!],
     complete: (game, c, a) => {
       const o = game.state.objects[a.targetId!];
@@ -299,7 +299,7 @@ export const ACTIONS: Record<string, ActionDef> = {
     },
   },
   build: {
-    anim: 'work', exertion: 2.2, label: 'Building', fastForward: true,
+    anim: 'chop', exertion: 2.2, label: 'Building', fastForward: true,
     tick: (game, c, a, dt) => {
       const o = game.state.objects[a.targetId!];
       if (!o || o.build === undefined) return false;
@@ -323,7 +323,7 @@ export const ACTIONS: Record<string, ActionDef> = {
     },
   },
   salvage: {
-    anim: 'work', exertion: 2, label: 'Salvaging', fastForward: true,
+    anim: 'chop', exertion: 2, label: 'Salvaging', fastForward: true,
     complete: (game, c, a) => {
       const o = game.state.objects[a.targetId!];
       if (!o) return;
@@ -375,7 +375,7 @@ export const ACTIONS: Record<string, ActionDef> = {
     },
   },
   butcher: {
-    anim: 'work', exertion: 1.6, label: 'Butchering', fastForward: true,
+    anim: 'crouch', exertion: 1.6, label: 'Butchering', fastForward: true,
     complete: (game, c, a) => {
       const o = game.state.objects[a.targetId!];
       if (!o) return;
@@ -399,7 +399,7 @@ export const ACTIONS: Record<string, ActionDef> = {
     },
   },
   plant: {
-    anim: 'work', exertion: 1.6, label: 'Planting', fastForward: true,
+    anim: 'crouch', exertion: 1.6, label: 'Planting', fastForward: true,
     complete: (game, c, a) => {
       const o = game.state.objects[a.targetId!];
       const seedItem = a.data!.item as string;
@@ -412,7 +412,7 @@ export const ACTIONS: Record<string, ActionDef> = {
     },
   },
   waterCrop: {
-    anim: 'work', exertion: 1.2, label: 'Watering',
+    anim: 'crouch', exertion: 1.2, label: 'Watering',
     complete: (game, c, a) => {
       const o = game.state.objects[a.targetId!];
       if (!o?.crop) return;
@@ -423,7 +423,7 @@ export const ACTIONS: Record<string, ActionDef> = {
     },
   },
   harvest: {
-    anim: 'work', exertion: 1.6, label: 'Harvesting', fastForward: true,
+    anim: 'crouch', exertion: 1.6, label: 'Harvesting', fastForward: true,
     complete: (game, c, a) => {
       const o = game.state.objects[a.targetId!];
       if (!o?.crop || o.crop.growth < 1) return;
@@ -466,7 +466,7 @@ export const ACTIONS: Record<string, ActionDef> = {
     },
   },
   checkSnare: {
-    anim: 'work', exertion: 1.2, label: 'Checking snare',
+    anim: 'crouch', exertion: 1.2, label: 'Checking snare',
     complete: (game, c, a) => {
       const o = game.state.objects[a.targetId!];
       if (!o) return;

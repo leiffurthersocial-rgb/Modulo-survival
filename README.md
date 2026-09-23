@@ -77,6 +77,19 @@ Everything listed here works in the game and affects the simulation.
   add up to the same budget for everyone, so nobody is strictly better.
 - **World**: open woodland with meadows, a wide clearing where the class
   starts, and broad paths and forest roads between places.
+- **Storage**: woven and pegged chests, a woodpile, a food store that keeps
+  food longer and a tool rack; general chests can be marked for one kind of
+  thing. NPCs put things where they belong, tidy misplaced items and build a
+  woodpile or food store once stocks grow.
+- **Social**: look in a classmate's bag and take or give things (friends do not
+  mind, others remember, nobody gives up what they need); chat, comfort,
+  praise, ask about their life or apologise. NPCs comfort friends, share food,
+  make up after fights, and gather round the fire on good evenings.
+- **Tools**: a full kit in the supply bag, plus primitive tools you can make:
+  stone blade, stone axe and hammer, bow drill, gorge hooks, rope, pegs.
+- **Animation**: characters breathe and blink, swing axes and hammers, kneel to
+  gather, fish with a rod and gesture while talking; every sprite has an
+  outline and detailed faces, hair and clothing.
 - **Onboarding**: a new world opens with a short welcome card. A First steps
   checklist on the HUD walks you through the first day (supply bag, water,
   camp spot, fire, shelter, sleep) and ticks itself off from what happens in

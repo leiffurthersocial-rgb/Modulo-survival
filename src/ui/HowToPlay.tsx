@@ -124,14 +124,15 @@ const SECTIONS: Section[] = [
           <b>Pick a spot</b> that is dry, near water and not too far from wood, and press <K>H</K>. The whole group heads there and starts working on the camp.
         </p>
         <p>
-          <b>Build</b> (<K>B</K>): choose a structure, place it with <K>E</K> or a click (<K>P</K> or right-click cancels), then work on the site with{' '}
-          <K>E</K> until it is finished. The materials are taken from your bag or from camp storage nearby.
+          <b>Build</b> (<K>B</K>): choose a structure, place it with <K>E</K> or a click, then work on the site with <K>E</K> until it is finished. While
+          placing, the <b>Cancel building</b> button, <K>B</K>, <K>P</K> or right-click puts it away. While working on a site, <b>Stop</b> or <b>Cancel
+          construction</b> (all materials back) appear under the progress bar. Dismantling a finished structure always asks first.
         </p>
         <ul>
           <li><b>Campfire:</b> warmth, light, cooking and boiling. Feed it branches or firewood. Light it with matches or a lighter; a fire that just went out can be blown back to life while the embers glow.</li>
           <li><b>Lean-to:</b> keeps the rain off and makes sleep much better.</li>
           <li><b>Latrine:</b> keeps waste out of camp and out of the water.</li>
-          <li><b>Storage:</b> a shared stockpile. The others bring wood, water and food to it and take from it.</li>
+          <li><b>Storage:</b> shared stockpiles. A woodpile takes only wood, a food store only food (it keeps food almost twice as long), a tool rack only tools. General chests take anything, or you can mark one for a single kind of thing (<K>E</K> on it). The others put things away where they belong and tidy misplaced items.</li>
         </ul>
         <p>Branches come from deadfall and from snapping dead branches off trees. With an axe you can fell trees for logs and firewood.</p>
       </>
@@ -146,7 +147,11 @@ const SECTIONS: Section[] = [
           The Craft window (<K>K</K>) lists every recipe. Those you can make right now are at the top; the rest show what is missing. Some need a tool (a knife,
           an axe) or a place (a fire for cooking, a workbench for planks).
         </p>
-        <p>Useful early: cordage from plant fibre (tall grass), a digging stick, a stone axe, a spear, a fishing rod, bandages from cloth, a torch.</p>
+        <p>
+          The supply bag holds a full kit: hatchet, hunting and pocket knives, folding saw, hammer and nails, shovel, gloves, pot, flashlight, matches and a
+          lighter. When tools run short, make your own from what the forest gives: cordage from plant fibre, a knapped stone blade, stone axe and hammer,
+          bow drill for fire, gorge hooks and a fishing rod, spear, digging stick, fibre torch, rope, split planks and wooden pegs in place of nails.
+        </p>
         <p>Tools wear out. Better tools and higher skill make work faster and safer.</p>
       </>
     ),
@@ -162,10 +167,18 @@ const SECTIONS: Section[] = [
         </p>
         <p>
           In the <b>Group</b> window (<K>G</K>) you can see how everyone is doing and give broad orders: gather wood, fetch water, forage, build, cook, fish or
-          hunt. You can also send people on <b>expeditions</b> to search places on the map. Talking to someone (<K>E</K> on them) lets you ask them to follow you
-          or wait, and give them food or water.
+          hunt. You can also send people on <b>expeditions</b> to search places on the map.
         </p>
-        <p>Morale matters. Hunger, cold, deaths and conflict wear people down; a warm fire, food and company lift them.</p>
+        <p>
+          Face someone and press <K>E</K>: <b>Talk</b> lets you chat, comfort them when they are low, praise their work, ask about their life or apologise.
+          <b>Look in their bag</b> shows what they carry: double-click their things to take them, or your own to give. Friends do not mind; others remember
+          it, nobody gives up what they need, and rivals refuse. Going through a sleeper's bag is theft if they notice.
+        </p>
+        <p>
+          Friendships and rivalries grow on their own. People comfort friends who are struggling, share food with the hungry, sometimes make up after a
+          fight, and on good evenings the group gathers round the fire to sing or tell stories. Morale matters: hunger, cold, deaths and conflict wear people
+          down; a warm fire, food and company lift them.
+        </p>
       </>
     ),
   },

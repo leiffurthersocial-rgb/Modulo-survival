@@ -380,21 +380,38 @@ export class Renderer {
     const y = c.y * TILE - CH + 3 - cy;
     if (c.sleeping) {
       const atlas = characterAtlas(c);
-      b.drawImage(atlas.sleep, Math.round(c.x * TILE - 12 - cx), Math.round(c.y * TILE - 10 - cy));
+      // slow breathing
+      const breath = Math.floor(t * 0.7 + (c.x * 7.3) % 3) % 2 === 1;
+      b.drawImage(breath ? atlas.sleep2 : atlas.sleep, Math.round(c.x * TILE - 12 - cx), Math.round(c.y * TILE - 10 - cy));
       if (Math.floor(t * 1.2 + c.x) % 3 === 0) {
         b.fillStyle = 'rgba(230,230,240,0.8)';
         b.fillRect(Math.round(c.x * TILE - 6 - cx), Math.round(c.y * TILE - 14 - cy - ((t * 4) % 4)), 2, 1);
       }
       return;
     }
-    let frame: FrameName = 'idle';
     const anim = c.action ? ACTIONS[c.action.type]?.anim : undefined;
-    if (anim === 'work' || anim === 'fish') frame = Math.floor(t * (anim === 'fish' ? 1 : 3.5) + c.x) % 2 ? 'work1' : 'work2';
+    // a per-character phase so a group never moves in lockstep
+    const phase = ((c.x * 13.7 + c.y * 7.1) % 1) * 3;
+    let frame: FrameName;
+    if (anim === 'work') frame = Math.floor(t * 3.5 + phase) % 2 ? 'work1' : 'work2';
+    else if (anim === 'chop') {
+      // a slow wind-up, then a quick strike
+      const k = (t * 1.6 + phase) % 1;
+      frame = k < 0.62 ? 'chop1' : 'chop2';
+    } else if (anim === 'crouch') frame = Math.floor(t * 2.2 + phase) % 2 ? 'crouch1' : 'crouch2';
+    else if (anim === 'fish') frame = 'fish';
     else if (anim === 'eat') frame = Math.floor(t * 2) % 2 ? 'eat' : 'idle';
-    else if (anim === 'sit') frame = 'sit';
+    else if (anim === 'sit') frame = Math.floor(t * 0.8 + phase) % 2 ? 'sit' : 'sit2';
     else if (c.moving) {
       const speed = c.sprinting ? 12 : 8;
       frame = (['walk1', 'walk2', 'walk3', 'walk4'] as const)[Math.floor(t * speed) % 4];
+    } else {
+      // idle: breathe, blink now and then, gesture while talking
+      const talking = !!c.speech && c.speech.until > this.game.state.time && (c.speech.from ?? 0) <= this.game.state.time;
+      const blinkNow = (t + phase * 1.7) % 3.6 < 0.14;
+      if (blinkNow) frame = 'blink';
+      else if (talking && Math.floor(t * 2.5 + phase) % 3 === 0) frame = 'talk';
+      else frame = Math.floor(t * 0.9 + phase) % 2 ? 'idle' : 'idle2';
     }
     drawCharacterFrame(b, c, frame, x, y);
     // hand-held light
