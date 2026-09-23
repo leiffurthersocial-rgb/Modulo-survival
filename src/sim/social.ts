@@ -1,8 +1,10 @@
 import { clamp } from '@/core/math';
 import { rand3, hashString } from '@/core/rng';
-import type { Character, MemoryKind, Relationship, TraitId } from './types';
+import type { Character, ItemStack, MemoryKind, Relationship, TraitId } from './types';
+import { itemDef } from '@/content/items';
 import type { Game } from './game';
-import { dayOf } from './clock';
+import { dayOf, hourOf } from './clock';
+import { addItem } from './inventory';
 
 /** Conversation lines. Topics never concern anyone's physical appearance. */
 const TOPICS: { opener: string; reply: string[] }[] = [
@@ -25,6 +27,10 @@ const ARGUMENTS = [
   'had a sharp disagreement about the water',
   'argued about a borrowed knife that was not returned',
 ];
+
+function foodCount(c: Character): number {
+  return c.inventory.reduce((n, s) => n + (s && itemDef(s.id).food ? s.qty : 0), 0);
+}
 
 function compat(a: TraitId[], b: TraitId[]): number {
   let v = 0;
@@ -146,6 +152,8 @@ export class Social {
         else this.talk(a, b);
       }
     }
+    this.careForEachOther(people, dt);
+    this.fireEvenings(people);
     // romance evolves slowly among close pairs
     for (const k in g.state.relationships) {
       const r = g.state.relationships[k];
@@ -165,6 +173,144 @@ export class Social {
           g.journal(`${ca.name} and ${cb.name} have become a couple.`, 'social');
         }
       } else if (!r.partners) r.romance = Math.max(0, r.romance - 0.2 * (dt / 30));
+    }
+  }
+
+  /** Friends look after each other: comfort, shared food, making up. */
+  private careForEachOther(people: Character[], dt: number): void {
+    const g = this.game;
+    for (const a of people) {
+      if (g.isPlayer(a) || a.action?.type === 'sleep') continue;
+      for (const b of people) {
+        if (a === b || g.isPlayer(b)) continue;
+        if (Math.abs(a.x - b.x) > 5 || Math.abs(a.y - b.y) > 5) continue;
+        const r = this.get(a.id, b.id);
+        const kind = a.traits.includes('compassionate') ? 1.6 : 1;
+        // comfort a friend who is struggling
+        if (b.needs.morale < 30 && r.affinity > 25 && a.needs.morale > 40 && g.rng.chance(0.25 * kind * (dt / 30))) {
+          b.needs.morale = Math.min(100, b.needs.morale + 8);
+          b.needs.stress = Math.max(0, b.needs.stress - 8);
+          this.adjust(a.id, b.id, 3, 2);
+          this.remember(b.id, 'comforted', a.id, 6, `${a.name} sat with me when I was low`);
+          g.say(a, g.rng.pick(['Hey. We will get through this.', 'Talk to me. What is going on?', 'You are not alone out here.']), 5);
+          g.say(b, g.rng.pick(['Thanks. I needed that.', 'I know. It is just hard.', '...Thank you.']), 5, 3);
+          continue;
+        }
+        // share food with a hungry friend
+        if (b.needs.satiety < 15 && r.affinity > 20 && a.needs.satiety > 45 && g.rng.chance(0.3 * kind * (dt / 30))) {
+          const i = a.inventory.findIndex((s) => !!s && !!itemDef(s.id).food && (itemDef(s.id).food!.risk ?? 0) < 0.3);
+          if (i >= 0 && foodCount(a) > 2) {
+            const s = a.inventory[i]!;
+            const one = { ...s, qty: 1 };
+            s.qty -= 1;
+            if (s.qty <= 0) a.inventory[i] = null;
+            const left = addItem(b.inventory, one);
+            if (left) addItem(a.inventory, left);
+            else {
+              this.helped(a.id, b.id, `shared ${itemDef(one.id).name.toLowerCase()} with me`, 6);
+              g.say(a, 'Here, take this. You look like you need it.', 5);
+            }
+            continue;
+          }
+        }
+        // rivals sometimes make up, especially the kind or optimistic
+        if ((r.rivals || r.affinity < -15) && a.needs.stress < 40 && g.rng.chance(0.02 * kind * (a.traits.includes('optimistic') ? 1.5 : 1) * (a.traits.includes('stubborn') ? 0.3 : 1) * (dt / 30))) {
+          this.adjust(a.id, b.id, 14, 8);
+          this.remember(b.id, 'apology', a.id, 5, `${a.name} apologised to me`);
+          g.say(a, g.rng.pick(['Look, I am sorry about before.', 'Can we start over?', 'I was out of line. Sorry.']), 5);
+          g.say(b, g.rng.pick(['...Alright. Me too.', 'Yeah. Let us move on.', 'Thanks for saying that.']), 5, 3);
+          g.journal(`${a.name} and ${b.name} patched things up.`, 'social');
+        }
+      }
+    }
+    // friendships worth mentioning
+    for (const k in g.state.relationships) {
+      const r = g.state.relationships[k];
+      if (r.friends || r.affinity < 65 || r.trust < 55) continue;
+      const [a, b] = k.split('|');
+      const ca = g.state.characters[a];
+      const cb = g.state.characters[b];
+      if (!ca?.alive || !cb?.alive) continue;
+      r.friends = true;
+      if (!g.isPlayer(ca) && !g.isPlayer(cb)) g.journal(`${ca.name} and ${cb.name} have become close friends.`, 'social');
+      else g.journal(`${g.isPlayer(ca) ? cb.name : ca.name} counts you as a close friend now.`, 'social');
+    }
+  }
+
+  /** Evenings around a lit fire: songs, stories and plans lift everyone. */
+  private fireEvenings(people: Character[]): void {
+    const g = this.game;
+    const h = hourOf(g.state.time);
+    if (h < 19 || h > 23) return;
+    const day = dayOf(g.state.time);
+    if ((g.state.lastFireEvening ?? -1) >= day) return;
+    const fire = g.index.nearestOfType(['campfire', 'fire_pit'], g.home.x, g.home.y, 20, (o) => !!o.lit);
+    if (!fire) return;
+    const circle = people.filter((c) => Math.hypot(c.x - fire.x, c.y - fire.y) < 5 && !c.sleeping);
+    if (circle.length < 4 || !g.rng.chance(0.35)) return;
+    g.state.lastFireEvening = day;
+    const moments = [
+      { text: 'sang songs around the fire until late', line: 'Everyone knows this one. Come on.' },
+      { text: 'told stories about home around the fire', line: 'Remember the first day of school?' },
+      { text: 'made plans for the coming weeks by the fire', line: 'If we store enough wood now, winter will be fine.' },
+      { text: 'laughed together by the fire for the first time in days', line: 'I cannot believe you did that.' },
+      { text: 'sat quietly by the fire, remembering the ones who are gone', line: 'To the ones we lost.' },
+    ];
+    const lost = Object.values(g.state.characters).some((c) => !c.alive);
+    const m = lost && g.rng.chance(0.3) ? moments[4] : g.rng.pick(moments.slice(0, 4));
+    const teller = g.rng.pick(circle.filter((c) => !g.isPlayer(c)));
+    if (teller) g.say(teller, m.line, 6);
+    for (const c of circle) {
+      c.needs.morale = Math.min(100, c.needs.morale + 7);
+      c.needs.stress = Math.max(0, c.needs.stress - 6);
+      this.remember(c.id, 'campEvent', undefined, 4, `we ${m.text}`);
+    }
+    for (let i = 0; i < circle.length; i++) for (let j = i + 1; j < circle.length; j++) this.adjust(circle[i].id, circle[j].id, 1.5, 1);
+    g.journal(`The group ${m.text}.`, 'social');
+  }
+
+  /**
+   * Player social actions on a classmate. Each returns what they say; all
+   * have cooldowns so they cannot be repeated for easy affection.
+   */
+  playerSocial(player: Character, npc: Character, act: 'comfort' | 'praise' | 'ask' | 'apologise'): void {
+    const g = this.game;
+    const r = this.get(npc.id, player.id);
+    const cool = (r.cool ??= {});
+    if ((cool[act] ?? 0) > g.state.time) {
+      g.say(npc, act === 'ask' ? 'You already asked me that.' : g.rng.pick(['Thanks, but I am alright for now.', 'Mm.']), 4);
+      return;
+    }
+    cool[act] = g.state.time + (act === 'ask' ? 1440 * 3 : act === 'apologise' ? 1440 : 240);
+    if (act === 'comfort') {
+      const low = npc.needs.morale < 45 || npc.needs.stress > 55;
+      npc.needs.morale = Math.min(100, npc.needs.morale + (low ? 12 : 3));
+      npc.needs.stress = Math.max(0, npc.needs.stress - (low ? 10 : 2));
+      this.adjust(npc.id, player.id, low ? 5 : 1, low ? 3 : 0.5);
+      if (low) this.remember(npc.id, 'comforted', player.id, 6, `${player.name} was there for me`);
+      g.say(npc, low ? g.rng.pick(['Thank you. It helps to hear that.', 'I did not want to say it, but I am scared.', 'Sorry. It has been a bad day.']) : g.rng.pick(['I am okay, really.', 'Thanks. You too.']), 5);
+    } else if (act === 'praise') {
+      const worked = npc.ai.task !== 'idle' && npc.ai.task !== 'socialise';
+      npc.needs.morale = Math.min(100, npc.needs.morale + (worked ? 6 : 2));
+      this.adjust(npc.id, player.id, worked ? 3 : 0.5, 1);
+      if (worked) this.remember(npc.id, 'praised', player.id, 3, `${player.name} said I was doing good work`);
+      g.say(npc, worked ? g.rng.pick(['Someone has to do it.', 'Thanks. That means something.', 'We all do our part.']) : 'For what, exactly?', 4);
+    } else if (act === 'ask') {
+      this.adjust(npc.id, player.id, 3, 3);
+      g.say(npc, `${npc.background} ${traitLine(npc.traits)}`, 8);
+    } else {
+      const grudges = npc.memories.filter((m) => m.who === player.id && m.weight < 0);
+      if (!grudges.length) {
+        g.say(npc, 'Sorry for what? We are fine.', 4);
+        return;
+      }
+      const accept = g.rng.chance(0.4 + r.trust / 200 + (npc.traits.includes('compassionate') ? 0.2 : 0) - (npc.traits.includes('stubborn') ? 0.25 : 0));
+      if (accept) {
+        for (const m of grudges) m.weight = Math.round(m.weight * 0.3);
+        this.adjust(npc.id, player.id, 8, 6);
+        this.remember(npc.id, 'apology', player.id, 4, `${player.name} apologised to me`);
+        g.say(npc, g.rng.pick(['Alright. Thanks for saying it.', 'Okay. Let us put it behind us.']), 5);
+      } else g.say(npc, g.rng.pick(['Words are cheap.', 'I am not ready to hear that yet.']), 5);
     }
   }
 
@@ -208,6 +354,62 @@ export class Social {
     }
   }
 
+  /**
+   * The player takes something out of a classmate's bag. Friends shrug it off;
+   * others mind, refuse if it is something they need, and remember it. Taking
+   * from a sleeper is theft if they notice. Returns false when refused.
+   */
+  takeFromPerson(taker: Character, owner: Character, slot: number): boolean {
+    const g = this.game;
+    const s = owner.inventory[slot];
+    if (!s) return false;
+    const r = this.get(owner.id, taker.id);
+    const d = itemDef(s.id);
+    const name = d.name.toLowerCase();
+    const friend = r.partners || r.affinity >= 35;
+    if (owner.sleeping) {
+      if (g.rng.chance(0.35)) {
+        this.adjust(owner.id, taker.id, -10, -18);
+        this.remember(owner.id, 'stolen', taker.id, -14, `${taker.name} took my ${name} while I slept`);
+        g.journal(`${owner.name} noticed ${taker.name} going through their things at night.`, 'social');
+      }
+      return true;
+    }
+    const needsIt =
+      (d.food && owner.needs.satiety < 30 && foodCount(owner) <= 2) ||
+      (d.category === 'water' && owner.needs.hydration < 35) ||
+      (d.medical === 'bandage' && owner.health.injuries.some((i) => !i.bandaged));
+    if (r.rivals || r.affinity < -25) {
+      this.adjust(owner.id, taker.id, -2, -2);
+      g.say(owner, g.rng.pick(['Keep your hands off my things.', 'Not a chance.', 'Get out of my bag.']), 5);
+      return false;
+    }
+    if (needsIt && !r.partners) {
+      g.say(owner, g.rng.pick(['I need that. Sorry.', 'No, I need that one.', 'Please, not that. I need it.']), 5);
+      return false;
+    }
+    if (friend) {
+      this.adjust(owner.id, taker.id, -0.5);
+      g.say(owner, g.rng.pick(['Sure, take it.', 'Go ahead.', 'It is yours.']), 4);
+    } else {
+      this.adjust(owner.id, taker.id, -4, -4);
+      this.remember(owner.id, 'tookFrom', taker.id, -4, `${taker.name} took my ${name}`);
+      g.say(owner, g.rng.pick(['Hey. Fine, take it.', 'You could have asked.', 'That was mine.']), 4);
+    }
+    return true;
+  }
+
+  /** The player puts something into a classmate's bag. */
+  giveToPerson(giver: Character, owner: Character, s: ItemStack): void {
+    const g = this.game;
+    const d = itemDef(s.id);
+    const wanted = (d.food && owner.needs.satiety < 40) || (d.category === 'water' && owner.needs.hydration < 45) || (d.category === 'clothing' && owner.needs.bodyTemp < 36.5);
+    const amount = wanted ? 7 : d.food || d.medical ? 3 : 1.5;
+    this.adjust(giver.id, owner.id, amount, amount * 0.7);
+    this.remember(owner.id, 'gift', giver.id, amount, `${giver.name} gave me ${d.name.toLowerCase()}`);
+    g.say(owner, wanted ? g.rng.pick(['You have no idea how much I needed this.', 'Thank you. Really.']) : g.rng.pick(['Thanks.', 'Oh, thank you.', 'That is kind.']), 4);
+  }
+
   sharedExperience(ids: string[], amount: number, text: string): void {
     for (let i = 0; i < ids.length; i++)
       for (let j = i + 1; j < ids.length; j++) {
@@ -216,4 +418,14 @@ export class Social {
         this.remember(ids[j], 'expedition', ids[i], amount, text);
       }
   }
+}
+
+function traitLine(traits: TraitId[]): string {
+  if (traits.includes('anxious')) return 'Honestly, all this scares me more than I let on.';
+  if (traits.includes('brave')) return 'I think we can make it out here, if we keep our heads.';
+  if (traits.includes('curious')) return 'I keep wondering what actually happened back there.';
+  if (traits.includes('introverted')) return 'I do better with a job to do than with a crowd.';
+  if (traits.includes('optimistic')) return 'Somehow I still think it will turn out alright.';
+  if (traits.includes('stubborn')) return 'I do things my own way. You will get used to it.';
+  return 'We will see how it goes.';
 }

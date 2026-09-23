@@ -169,7 +169,13 @@ export type MemoryKind =
   | 'campEvent'
   | 'talked'
   | 'breakup'
-  | 'partnered';
+  | 'partnered'
+  | 'stolen'
+  | 'tookFrom'
+  | 'gift'
+  | 'comforted'
+  | 'praised'
+  | 'apology';
 
 export type OrderId =
   | 'none'
@@ -391,6 +397,10 @@ export interface Relationship {
   partners: boolean;
   rivals: boolean;
   interactions: number;
+  /** close friends (announced once) */
+  friends?: boolean;
+  /** player social action id -> game minute it can be used again */
+  cool?: Record<string, number>;
 }
 
 export interface JournalEntry {
@@ -434,6 +444,8 @@ export interface GameState {
   markers: MapMarker[];
   expeditions: Expedition[];
   relationships: Record<string, Relationship>;
+  /** game day of the last shared evening around the fire */
+  lastFireEvening?: number;
   journal: JournalEntry[];
   lore: { cause: string; found: string[]; placed?: string[] };
   hints: string[];

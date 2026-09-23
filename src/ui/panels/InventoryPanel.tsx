@@ -20,7 +20,7 @@ const EQUIP: [EquipSlot, string][] = [
   ['hand', 'Held'],
 ];
 
-type Sel = { from: 'inv' | 'eq' | 'box'; i: number | EquipSlot } | null;
+type Sel = { from: 'inv' | 'eq' | 'box' | 'person'; i: number | EquipSlot } | null;
 
 export function InventoryPanel({ session }: { session: GameSession }) {
   useSession(session);
@@ -29,11 +29,39 @@ export function InventoryPanel({ session }: { session: GameSession }) {
   const [sel, setSel] = useState<Sel>(null);
   const box = session.ui.container !== undefined ? g.state.objects[session.ui.container] : undefined;
   const boxInRange = box && Math.hypot(box.x + 0.5 - p.x, box.y + 0.5 - p.y) < 3.2;
+  const person = session.ui.person ? g.state.characters[session.ui.person] : undefined;
+  const personInRange = !!person?.alive && Math.hypot(person.x - p.x, person.y - p.y) < 3.2;
+  const takeFromPerson = (i: number) => {
+    if (!person || !personInRange) return;
+    const s = person.inventory[i];
+    if (!s) return;
+    if (!g.social.takeFromPerson(p, person, i)) return session.bump();
+    person.inventory[i] = addItem(p.inventory, s);
+    session.bump();
+  };
+  const giveToPerson = (i: number) => {
+    if (!person || !personInRange) return;
+    const s = p.inventory[i];
+    if (!s) return;
+    const left = addItem(person.inventory, s);
+    if (left && left.qty === s.qty) return session.toast(`${person.name} has no room for that.`, 'warn');
+    p.inventory[i] = left;
+    g.social.giveToPerson(p, person, s);
+    session.bump();
+  };
   if (box && boxInRange) ensureLoot(g, box);
   const close = () => session.openPanel(null);
 
   const selStack: ItemStack | null | undefined =
-    sel?.from === 'inv' ? p.inventory[sel.i as number] : sel?.from === 'eq' ? p.equipment[sel.i as EquipSlot] : sel?.from === 'box' ? box?.inv?.[sel.i as number] : undefined;
+    sel?.from === 'inv'
+      ? p.inventory[sel.i as number]
+      : sel?.from === 'eq'
+        ? p.equipment[sel.i as EquipSlot]
+        : sel?.from === 'box'
+          ? box?.inv?.[sel.i as number]
+          : sel?.from === 'person'
+            ? person?.inventory[sel.i as number]
+            : undefined;
 
   const weight = totalWeight(p);
   const cap = carryCapacity(p);
@@ -81,7 +109,7 @@ export function InventoryPanel({ session }: { session: GameSession }) {
   const actions = sel?.from === 'inv' && selStack ? itemActions(g, p, sel.i as number) : [];
 
   return (
-    <Panel title={box && boxInRange ? `Inventory and ${box.type === 'corpse' ? `${box.label}'s belongings` : objectDef(box.type).name}` : 'Inventory'} onClose={close}>
+    <Panel title={box && boxInRange ? `Inventory and ${box.type === 'corpse' ? `${box.label}'s belongings` : objectDef(box.type).name}` : person && personInRange ? `Inventory and ${person.name}'s bag` : 'Inventory'} onClose={close}>
       <div className="row" style={{ alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
         <div className="col" style={{ minWidth: 300 }}>
           <div className="spread">
@@ -101,6 +129,7 @@ export function InventoryPanel({ session }: { session: GameSession }) {
                 onDoubleClick={() => {
                   // double-click food or a drink to consume it on the spot; with a box open it moves the item
                   if (box && boxInRange) moveToBox(i);
+                  else if (person && personInRange) giveToPerson(i);
                   else if (consumeNow(g, p, i)) session.bump();
                 }}
               />
@@ -135,6 +164,30 @@ export function InventoryPanel({ session }: { session: GameSession }) {
           </div>
         )}
 
+        {person && personInRange && (
+          <div className="col" style={{ minWidth: 260 }}>
+            <div className="spread">
+              <h3>{person.name}'s bag</h3>
+              <span className={opinionTone(g.social.get(person.id, p.id).affinity)}>{opinionWord(g.social.get(person.id, p.id).affinity)}</span>
+            </div>
+            <span className="faint" style={{ fontSize: '0.85em' }}>
+              {person.sleeping ? 'Asleep. They might notice if you go through their things.' : 'Friends let you take things; others mind, and nobody gives up what they need.'}
+            </span>
+            <div className="slots" style={{ maxWidth: 5 * 63 }}>
+              {person.inventory.map((s, i) => (
+                <ItemSlot key={i} stack={s} selected={sel?.from === 'person' && sel.i === i} onClick={() => setSel({ from: 'person', i })} onDoubleClick={() => takeFromPerson(i)} />
+              ))}
+            </div>
+            <h3 style={{ marginTop: 4 }}>Wearing</h3>
+            <div className="slots" style={{ maxWidth: 5 * 63 }}>
+              {EQUIP.map(([slot, label]) => (
+                <ItemSlot key={slot} stack={person.equipment[slot]} label={label} />
+              ))}
+            </div>
+            <span className="faint" style={{ fontSize: '0.85em' }}>Double-click their items to take them, or your own to give them.</span>
+          </div>
+        )}
+
         <div className="item-card col" style={{ width: 280 }}>
           {selStack ? (
             <>
@@ -150,6 +203,14 @@ export function InventoryPanel({ session }: { session: GameSession }) {
                 ))}
                 {sel?.from === 'eq' && (
                   <button onClick={() => (unequip(g, p, sel.i as EquipSlot), setSel(null), session.bump())}>Take off</button>
+                )}
+                {sel?.from === 'person' && (
+                  <button className="primary" onClick={() => (takeFromPerson(sel.i as number), setSel(null))}>
+                    Take
+                  </button>
+                )}
+                {sel?.from === 'inv' && person && personInRange && (
+                  <button onClick={() => (giveToPerson(sel.i as number), setSel(null))}>Give to {person.name}</button>
                 )}
                 {sel?.from === 'inv' && box && boxInRange && (
                   <button onClick={() => (moveToBox(sel.i as number), setSel(null))}>Store</button>
@@ -180,4 +241,11 @@ function ItemFacts({ stack }: { stack: ItemStack }) {
   if (d.fuel) facts.push(`burns ${d.fuel} min`);
   if (d.liquidCapacity) facts.push(`holds ${d.liquidCapacity / 1000} L`);
   return <span className="faint" style={{ fontSize: '0.85em' }}>{facts.join('  |  ')}</span>;
+}
+
+function opinionWord(a: number): string {
+  return a >= 60 ? 'Close friend' : a >= 35 ? 'Friend' : a >= 10 ? 'Friendly' : a > -10 ? 'Neutral' : a > -25 ? 'Cool towards you' : 'Hostile';
+}
+function opinionTone(a: number): string {
+  return a >= 35 ? 'good' : a > -10 ? 'muted' : 'bad';
 }

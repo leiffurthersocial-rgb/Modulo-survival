@@ -39,7 +39,9 @@ describe('interactions', () => {
     for (const it of getInteractions(g, p, { kind: 'water', x: w[0], y: w[1] })) if (it.enabled) (it.run(), g.advance(5));
     // characters
     const npc = g.npcs()[0];
-    for (const it of getInteractions(g, p, { kind: 'character', char: npc })) if (it.enabled) (it.run(), g.advance(5));
+    for (const it of getInteractions(g, p, { kind: 'character', char: npc })) {
+      for (const x of [it, ...(it.children ?? [])]) if (x.enabled) (x.run(), g.advance(5));
+    }
     // item actions for every item
     for (const id of Object.keys(ITEMS)) {
       p.inventory[0] = makeStack(id, 2);

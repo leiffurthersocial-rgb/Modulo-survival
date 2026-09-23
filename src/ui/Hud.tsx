@@ -145,9 +145,27 @@ export function Hud({ session }: { session: GameSession }) {
               <div style={{ width: `${Math.min(100, (act.elapsed / act.duration) * 100)}%` }} />
             </div>
           )}
+          <div className="row" style={{ justifyContent: 'center', gap: 4, marginTop: 3 }}>
+            <button className="small" onClick={() => session.stopAction()}>
+              Stop
+            </button>
+            {act.type === 'build' && act.targetId !== undefined && g.state.objects[act.targetId]?.build !== undefined && (
+              <button className="small danger" onClick={() => session.stopAction(true)} title="Scrap the site and get the materials back">
+                Cancel construction
+              </button>
+            )}
+          </div>
         </div>
       )}
 
+      {session.ui.buildType && !session.ui.panel && (
+        <div className="hud-build panel">
+          <button className="danger" onClick={() => session.cancelBuild()}>
+            Cancel building
+          </button>
+          <span className="faint">B, P or right-click</span>
+        </div>
+      )}
       {session.ui.prompt && !session.ui.menu && !session.ui.panel && (session.ui.prompt.label || session.ui.prompt.name) && (
         <div className="hud-prompt">
           {session.ui.prompt.label && <Key k={session.ui.buildType ? 'E' : p.sleeping ? 'E' : 'E'} />}

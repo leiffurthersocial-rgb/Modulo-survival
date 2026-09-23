@@ -43,6 +43,8 @@ export interface Interaction {
   enabled: boolean;
   reason?: string;
   run: () => void;
+  /** opens a submenu instead of running */
+  children?: Interaction[];
 }
 
 export const REACH = 1.7;
@@ -166,16 +168,42 @@ export function getInteractions(game: Game, c: Character, t: Target): Interactio
 
   if (t.kind === 'character') {
     const o = t.char;
-    add('talk', 'Talk', () => talkTo(game, c, o));
+    const sub = (id: string, label: string, run: () => void, enabled = true, reason?: string): Interaction => ({ id, label, run, enabled, reason });
+    const rel = game.social.get(o.id, c.id);
+    const grudge = o.memories.some((m) => m.who === c.id && m.weight < 0);
+    const low = o.needs.morale < 45 || o.needs.stress > 55;
+    out.push({
+      id: 'talkMenu',
+      label: 'Talk...',
+      enabled: !o.sleeping,
+      reason: 'Asleep',
+      run: () => {},
+      children: [
+        sub('talk', 'Chat', () => talkTo(game, c, o)),
+        sub('comfort', low ? 'Comfort them (they look low)' : 'Comfort them', () => game.social.playerSocial(c, o, 'comfort')),
+        sub('praise', 'Praise their work', () => game.social.playerSocial(c, o, 'praise')),
+        sub('ask', 'Ask about their life', () => game.social.playerSocial(c, o, 'ask')),
+        sub('apologise', 'Apologise', () => game.social.playerSocial(c, o, 'apologise'), grudge || rel.affinity < 0, 'Nothing to apologise for'),
+      ],
+    });
+    add('bag', o.sleeping ? 'Look in their bag (they are asleep)' : 'Look in their bag', () => game.bus.emit('openPerson', { id: o.id }));
     const food = c.inventory.findIndex((s) => s && itemDef(s.id).food && (itemDef(s.id).food!.risk ?? 0) < 0.3);
     add('giveFood', 'Give food', () => giveFirst(game, c, o, food), food >= 0, 'No safe food');
     const water = cleanestWater(c.inventory, 200);
     add('giveWater', 'Give water', () => giveWater(game, c, o), !!water, 'No water');
     const hurt = o.health.injuries.some((i) => !i.bandaged);
     add('treat', 'Bandage wounds', () => startAction(game, c, 'treat', 4 / ws('firstAid'), { data: { patient: o.id } }), hurt && countItem(c.inventory, 'bandage') > 0, hurt ? 'No bandages' : 'Not injured');
-    add('follow', 'Ask to follow you', () => game.setOrder([o.id], 'follow'));
-    add('stay', 'Ask to wait here', () => game.setOrder([o.id], 'stay'));
-    add('free', 'Let them decide', () => game.setOrder([o.id], 'none'));
+    out.push({
+      id: 'orders',
+      label: 'Ask them to...',
+      enabled: true,
+      run: () => {},
+      children: [
+        sub('follow', 'Follow me', () => game.setOrder([o.id], 'follow')),
+        sub('stay', 'Wait here', () => game.setOrder([o.id], 'stay')),
+        sub('free', 'Do what they think is best', () => game.setOrder([o.id], 'none')),
+      ],
+    });
     return out;
   }
 

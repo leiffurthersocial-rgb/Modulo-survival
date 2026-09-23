@@ -323,7 +323,7 @@ h3 {
   left: 50%;
   bottom: 160px;
   transform: translateX(-50%);
-  width: 220px;
+  min-width: 220px;
   text-align: center;
 }
 .progress {
@@ -835,4 +835,20 @@ h3 {
   .first-steps {
     width: 210px;
   }
+}
+
+button.small {
+  padding: 1px 8px;
+  font-size: 0.85em;
+  min-height: 0;
+}
+.hud-build {
+  position: absolute;
+  left: 50%;
+  bottom: 160px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 5px 10px;
 }

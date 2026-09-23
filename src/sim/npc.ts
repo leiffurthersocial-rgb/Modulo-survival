@@ -204,6 +204,8 @@ export function updateNpc(game: Game, c: Character, dt: number, near: boolean): 
     const moved = game.moveCharacter(c, wx - c.x, wy - c.y, dt, Math.hypot(wx - c.x, wy - c.y));
     if (!moved) {
       c.ai.stuck += dt;
+      // wedged into something solid: step out to open ground first
+      if (c.ai.stuck > 1 && game.freeCharacter(c)) c.ai.stuck = 0;
       if (c.ai.stuck > 1.5) {
         c.ai.path = undefined;
         if (c.ai.stuck > 5) {

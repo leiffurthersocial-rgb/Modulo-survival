@@ -42,6 +42,7 @@ export interface GameEvents extends Record<string, unknown> {
   weatherChanged: { from: string; to: string };
   fireOut: { id: number };
   openContainer: { id: number };
+  openPerson: { id: string };
   playerDied: { id: string; cause: string };
   hint: { id: string; text: string };
   requestAutosave: { reason: string };
@@ -67,6 +68,9 @@ export interface PlayerInput {
 /** The player can only nap in daylight when Rest is at or below this. */
 export const DAY_NAP_ENERGY = 45;
 
+/** Half-width of a character's collision box, in tiles. */
+export const HITBOX = 0.28;
+
 /** Real seconds -> game minutes at 1x speed. */
 export const MINUTES_PER_SECOND = 1;
 export const WALK_SPEED = 4.2; // tiles per game minute
@@ -90,6 +94,8 @@ export class Game {
   private hourAcc = 0;
   private lastDay: number;
   private lastPlayerTile = -1;
+  /** game minutes the player has been pushing against something without moving */
+  private stuckFor = 0;
   private envCache = new Map<string, { t: number; env: LocalEnv }>();
 
   constructor(state: GameState) {
@@ -379,18 +385,22 @@ export class Game {
     const speed = this.moveSpeed(c);
     // never overshoot a waypoint
     const dist = Math.min(speed * dt, maxDist);
-    const r = 0.28;
+    const r = HITBOX;
+    // someone already overlapping something solid (a structure placed next to
+    // them, a tree that grew back) may always move out of it
+    const inside = this.collides(c.x, c.y, r);
+    const blocked = (x: number, y: number) => (inside ? this.index.isSolid(x, y) : this.collides(x, y, r));
     let moved = false;
     const nx = c.x + dx * dist;
-    if (!this.collides(nx, c.y, r)) {
+    if (!blocked(nx, c.y)) {
       c.x = nx;
       moved = true;
-    }
+    } else if (Math.abs(dx) > 0.7) moved = this.slideAround(c, 'y', nx, c.y, dist, blocked) || moved;
     const ny = c.y + dy * dist;
-    if (!this.collides(c.x, ny, r)) {
+    if (!blocked(c.x, ny)) {
       c.y = ny;
       moved = true;
-    }
+    } else if (Math.abs(dy) > 0.7) moved = this.slideAround(c, 'x', c.x, ny, dist, blocked) || moved;
     c.facing = faceDir(dx, dy, c.facing);
     c.moving = moved;
     if (moved) {
@@ -398,6 +408,40 @@ export class Game {
       if (t === T.MUD) c.needs.hygiene = Math.max(0, c.needs.hygiene - 0.05 * dt);
     }
     return moved;
+  }
+
+  /**
+   * Corner correction: walking straight into the edge of an obstacle nudges the
+   * character sideways around it instead of stopping dead.
+   */
+  private slideAround(c: Character, axis: 'x' | 'y', tx: number, ty: number, dist: number, blocked: (x: number, y: number) => boolean): boolean {
+    for (let o = 0.1; o <= 0.45; o += 0.05) {
+      for (const s of [1, -1]) {
+        const ox = axis === 'x' ? s * o : 0;
+        const oy = axis === 'y' ? s * o : 0;
+        if (!blocked(c.x + ox, c.y + oy) && !blocked(tx + ox, ty + oy)) {
+          const step = Math.min(dist, o);
+          if (axis === 'x') c.x += s * step;
+          else c.y += s * step;
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /** Lift a character boxed in by solids to the nearest open spot. */
+  freeCharacter(c: Character): boolean {
+    if (!this.collides(c.x, c.y, HITBOX)) return false;
+    for (let rad = 0; rad <= 6; rad++) {
+      const spot = this.index.findTileNear(c.x, c.y, rad, (x, y) => !this.collides(x + 0.5, y + 0.5, HITBOX));
+      if (spot) {
+        c.x = spot[0] + 0.5;
+        c.y = spot[1] + 0.5;
+        return true;
+      }
+    }
+    return false;
   }
 
   collides(x: number, y: number, r: number): boolean {
@@ -423,7 +467,10 @@ export class Game {
       return;
     }
     p.sprinting = sprint && p.needs.stamina > 3;
-    this.moveCharacter(p, dx, dy, dt);
+    const moved = this.moveCharacter(p, dx, dy, dt);
+    // safety net: trying to walk but boxed in for a moment -> step out to open ground
+    this.stuckFor = wants && !moved ? this.stuckFor + dt : 0;
+    if (this.stuckFor > 1 && this.freeCharacter(p)) this.stuckFor = 0;
     const tile = Math.floor(p.y) * this.state.width + Math.floor(p.x);
     if (tile !== this.lastPlayerTile) {
       this.lastPlayerTile = tile;

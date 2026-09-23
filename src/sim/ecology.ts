@@ -83,8 +83,13 @@ export function updateEcology(game: Game, dt: number): void {
         idx.changeType(o, 'sapling');
         o.regrow = st.time + game.rng.range(25, 45) * 1440;
       } else if (o.type === 'sapling') {
-        idx.changeType(o, game.rng.pick(['spruce', 'spruce', 'beech', 'birch']));
-        o.regrow = undefined;
+        // a tree cannot grow up through someone standing there: try again later
+        const occupied = game.livingCharacters().some((c) => Math.abs(c.x - (o.x + 0.5)) < 1.3 && Math.abs(c.y - (o.y + 0.5)) < 1.3);
+        if (occupied) o.regrow = st.time + 60;
+        else {
+          idx.changeType(o, game.rng.pick(['spruce', 'spruce', 'beech', 'birch']));
+          o.regrow = undefined;
+        }
       } else {
         o.s = 1;
         o.regrow = undefined;

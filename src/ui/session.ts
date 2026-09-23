@@ -7,7 +7,7 @@ import { log } from '@/core/logger';
 import { objectDef } from '@/content/objects';
 import { itemDef } from '@/content/items';
 import { findTarget, getInteractions, targetName, type Interaction, type Target } from '@/sim/interactions';
-import { checkPlacement, placeStructure } from '@/sim/building';
+import { checkPlacement, dismantle, placeStructure } from '@/sim/building';
 import { startAction } from '@/sim/actions';
 import { attackAnimal } from '@/sim/wildlife';
 import { daylight } from '@/sim/clock';
@@ -36,6 +36,8 @@ export interface ContextMenu {
 export interface UIState {
   panel: PanelId | null;
   container?: number;
+  /** a classmate whose bag is open in the inventory panel */
+  person?: string;
   buildType?: string;
   doc?: string;
   debug: boolean;
@@ -98,6 +100,11 @@ export class GameSession {
       }),
       g.bus.on('sound', (s) => audio.play(s.id, Math.hypot(s.x - g.player.x, s.y - g.player.y))),
       g.bus.on('lightning', () => setTimeout(() => audio.play('thunder'), 400 + Math.random() * 1500)),
+      g.bus.on('openPerson', (e) => {
+        this.openPanel('inventory');
+        this.ui.person = e.id;
+        this.bump();
+      }),
       g.bus.on('openContainer', (e) => {
         if (g.state.objects[e.id]?.type === 'supply_bag') notePlayerDid(g, 'openBag');
         this.openPanel('inventory', e.id);
@@ -332,6 +339,12 @@ export class GameSession {
     if (!m) return;
     const it = m.items[i];
     if (!it || !it.enabled) return;
+    if (it.children) {
+      this.ui.menu = { title: `${m.title}: ${it.label.replace(/\.\.\.$/, '')}`, items: it.children };
+      audio.play('ui');
+      this.bump();
+      return;
+    }
     this.ui.menu = undefined;
     it.run();
     audio.play('ui');
@@ -370,13 +383,26 @@ export class GameSession {
   beginBuild(type: string): void {
     this.ui.buildType = type;
     this.ui.panel = null;
-    this.toast(`Placing ${objectDef(type).name}. ${this.settings.touchControls ? 'Face a spot and press Use.' : 'Click or press E to place, right-click or P to cancel.'}`, 'info');
+    this.toast(`Placing ${objectDef(type).name}. ${this.settings.touchControls ? 'Face a spot and press Use.' : 'Click or press E to place. Cancel with the button, B, P or right-click.'}`, 'info');
     this.bump();
   }
 
   cancelBuild(): void {
     this.ui.buildType = undefined;
     this.renderer.ghost = undefined;
+    this.bump();
+  }
+
+  /** Stop what the player is doing; a construction site being worked on can be scrapped too. */
+  stopAction(scrapSite = false): void {
+    const p = this.game.player;
+    const a = p.action;
+    if (!a || a.type === 'sleep') return;
+    p.action = undefined;
+    if (scrapSite && a.type === 'build' && a.targetId !== undefined) {
+      const o = this.game.state.objects[a.targetId];
+      if (o && o.build !== undefined) dismantle(this.game, p, o);
+    }
     this.bump();
   }
 
@@ -401,6 +427,7 @@ export class GameSession {
     if (this.ui.panel === 'welcome' && !this.game.state.hints.includes('welcome')) this.game.state.hints.push('welcome');
     this.ui.panel = this.ui.panel === p && container === undefined ? null : p;
     this.ui.container = container;
+    this.ui.person = undefined;
     this.ui.menu = undefined;
     if (p) audio.play('uiOpen');
     this.bump();
@@ -449,6 +476,11 @@ export class GameSession {
         else this.toast('Nothing to strike at.', 'info');
         break;
       }
+      case 'build':
+        // B while placing puts the structure away again
+        if (this.ui.buildType) return this.cancelBuild();
+        this.openPanel('build');
+        break;
       case 'menu':
         if (this.ui.buildType) return this.cancelBuild();
         this.openPanel(this.ui.panel ? null : 'menu');
@@ -488,7 +520,6 @@ export class GameSession {
         break;
       case 'inventory':
       case 'craft':
-      case 'build':
       case 'map':
       case 'group':
       case 'character':
