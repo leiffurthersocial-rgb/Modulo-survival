@@ -33,7 +33,7 @@ export const RECIPES: RecipeDef[] = [
   { id: 'bake_potato', name: 'Bake Potatoes', inputs: { potato: 2 }, outputs: { baked_potato: 2 }, minutes: 30, skill: 'cooking', station: 'fire', desc: 'Bury them in the embers.' },
   { id: 'roast_mushrooms', name: 'Roast Mushrooms', inputs: { chanterelles: 3 }, outputs: { roasted_mushrooms: 3 }, minutes: 10, skill: 'cooking', station: 'fire', desc: 'Cooking reduces risk from edible mushrooms.' },
   { id: 'boil_pasta', name: 'Boil Pasta', inputs: { pasta: 1 }, outputs: { cooked_pasta: 1 }, minutes: 20, skill: 'cooking', station: 'fire', tool: 'boil', desc: 'Needs a pot and about a litre of water.' },
-  { id: 'bean_stew', name: 'Cook Bean Stew', inputs: { beans_dry: 2, wild_garlic: 1 }, outputs: { bean_stew: 2 }, minutes: 60, skill: 'cooking', station: 'fire', tool: 'boil', desc: 'Slow-cooked beans with garlic.' },
+  { id: 'bean_stew', name: 'Cook Bean Stew', inputs: { beans_dry: 2 }, outputs: { bean_stew: 2 }, minutes: 60, skill: 'cooking', station: 'fire', tool: 'boil', desc: 'Slow-cooked beans. Needs a pot and water.' },
 ];
 
 export const recipeById = (id: string): RecipeDef | undefined => RECIPES.find((r) => r.id === id);

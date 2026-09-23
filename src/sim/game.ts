@@ -521,7 +521,7 @@ export class Game {
     else if (n.bodyTemp < (this.isPlayer(c) ? 35.4 : 36) && n.energy > 15) reason = 'You wake up shivering. It is too cold to sleep.';
     else if (n.bladder > 96 && n.energy > 15) reason = 'You wake up needing the toilet.';
     else if (c.health.injuries.some((i) => i.bleeding > 0.25 && !i.bandaged)) reason = 'You wake to pain. The wound is bleeding.';
-    else if (this.envAt(c.x, c.y).rain > 0.4 && n.wetness > 70) reason = 'The rain soaks you awake.';
+    else if (this.envAt(c.x, c.y).rain > 0.4 && n.wetness > 70 && n.energy > 25) reason = 'The rain soaks you awake.';
     else if (this.envAt(c.x, c.y).fireHeat > 20) reason = 'You wake up choking on smoke.';
     if (reason) this.wake(c, reason);
   }
@@ -566,7 +566,7 @@ export class Game {
       n.morale = Math.max(0, n.morale - 12);
       n.wetness = Math.min(100, n.wetness + 15);
       if (this.isPlayer(c)) this.message('You could not hold it any longer. You need to wash.', 'bad');
-      else this.journal(`${c.name} had an accident and is miserable.`, 'event');
+      else c.memories.push({ kind: 'campEvent', day: dayOf(this.state.time), weight: -4, text: 'had an embarrassing accident' });
     }
   }
 
@@ -593,7 +593,9 @@ export class Game {
     if (n.wetness > 50) m -= 6;
     m += this.campComfort();
     m += this.social.friendsNearby(c) * 2.5;
-    for (const mem of c.memories) m += clamp(mem.weight * 0.15, -15, 8);
+    let memo = 0;
+    for (const mem of c.memories) memo += clamp(mem.weight * 0.15, -12, 8);
+    m += clamp(memo, -22, 12);
     const w = this.state.weather.current;
     if (w === 'clear') m += 3;
     if (w === 'heavyRain' || w === 'thunderstorm') m -= 4;

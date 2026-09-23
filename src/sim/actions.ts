@@ -534,7 +534,7 @@ export function drinkLiquid(game: Game, c: Character, ml: number, contam: number
   c.needs.hydration = Math.min(100, c.needs.hydration + drank / 25);
   c.needs.bladder = Math.min(100, c.needs.bladder + drank / 60);
   if (contam > 0.02) {
-    const p = contam * 0.55 * Math.min(1.5, drank / 400) * (1.25 - c.attributes.constitution * 0.04) * (game.state.mode === 'hardcore' ? 1.3 : 1);
+    const p = contam * 0.28 * Math.min(1.5, drank / 400) * (1.25 - c.attributes.constitution * 0.04) * (game.state.mode === 'hardcore' ? 1.4 : 1);
     if (game.rng.chance(p)) addIllness(game, c, 'stomachBug', 0.3 + contam * 0.4, 'contaminated water');
   }
   if (game.state.weather.temp < 3 && contam >= 0) c.needs.bodyTemp -= drank / 4000;
@@ -561,7 +561,7 @@ export function eatStack(game: Game, c: Character, slots: Slots, slot: number): 
   const d = itemDef(s.id);
   const f = d.food;
   if (!f) return;
-  if (f.needsOpen && !bestTool(c, 'open') && !bestTool(c, 'cut')) {
+  if (f.needsOpen && !bestTool(c, 'open') && !bestTool(c, 'cut') && !campToolNear(game, c, 'cut')) {
     game.charMessage(c, 'You need a knife to open this.', 'warn');
     return;
   }
@@ -645,7 +645,7 @@ export function lightFire(game: Game, c: Character, o: WorldObject): boolean {
   return false;
 }
 
-export function campToolNear(game: Game, c: Character, tag: 'boil'): { stack: ItemStack; power: number } | undefined {
+export function campToolNear(game: Game, c: Character, tag: 'boil' | 'cut'): { stack: ItemStack; power: number } | undefined {
   // a pot in a nearby camp container can be used at the fire
   let found: { stack: ItemStack; power: number } | undefined;
   game.index.objectsNear(c.x, c.y, 6, (o) => {

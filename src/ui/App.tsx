@@ -1,6 +1,6 @@
 import { Component, useEffect, useRef, useState, type ReactNode } from 'react';
 import { GameSession } from './session';
-import { loadSettings, saveSettings, type Settings } from './settings';
+import { debugAllowed, loadSettings, saveSettings, type Settings } from './settings';
 import { DeathScreen, LoadScreen, NewGameScreen, SettingsScreen, TitleScreen } from './screens';
 import { Hud } from './Hud';
 import { useSession } from './common';
@@ -49,7 +49,7 @@ function GameView(props: { state: GameState; settings: Settings; onSettings: (s:
     const s = new GameSession(props.state, host.current!, props.settings);
     s.start();
     setSession(s);
-    (window as unknown as { __game?: GameSession }).__game = s;
+    if (debugAllowed()) (window as unknown as { __game?: GameSession }).__game = s;
     return () => s.destroy();
     // the session lives for this state object only
     // eslint-disable-next-line react-hooks/exhaustive-deps

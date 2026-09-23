@@ -101,9 +101,10 @@ export function updateBody(game: Game, c: Character, dt: number, env: LocalEnv):
     let deficit = 18 - p;
     // shivering and thermogenesis: burn calories to defend core temperature
     if ((n.satiety > 5 || n.reserves > 10) && n.bodyTemp > 34.5) {
+      // shivering roughly doubles heat production at most (a few hundred kcal an hour)
       const covered = Math.min(deficit, 7);
-      if (n.satiety > 5) n.satiety -= covered * 0.018 * dt;
-      else n.reserves -= covered * 0.018 * dt * 0.12;
+      if (n.satiety > 5) n.satiety -= covered * 0.007 * dt;
+      else n.reserves -= covered * 0.007 * dt * 0.08;
       deficit -= covered * (n.bodyTemp > 36.5 ? 1 : 0.6);
     }
     n.bodyTemp -= deficit * coldK * dt;
@@ -127,7 +128,7 @@ export function updateBody(game: Game, c: Character, dt: number, env: LocalEnv):
   const conMul = 1 - (a.constitution - 5) * 0.025;
   const burn = 0.04 * ex * conMul * hcMul * dt;
   if (n.satiety > 0) n.satiety -= burn;
-  else n.reserves -= burn * 0.12; // the body draws on its reserves: about ten days of deficit
+  else n.reserves -= burn * 0.08; // the body draws on its reserves: roughly two weeks without food
   // a full stomach slowly rebuilds reserves
   if (n.satiety > 75 && n.reserves < 100) {
     n.reserves += 0.004 * dt;

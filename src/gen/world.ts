@@ -1,6 +1,6 @@
 import { Rng, hashString, rand3 } from '@/core/rng';
 import { fbm, valueNoise } from '@/core/noise';
-import { T, isWater } from '@/content/terrain';
+import { T, isWater, terrainDef } from '@/content/terrain';
 import { ANIMALS } from '@/content/animals';
 import { LORE_CAUSES } from '@/content/lore';
 import { objectDef } from '@/content/objects';
@@ -122,6 +122,72 @@ function stampBuilding(c: Ctx, kind: string, name: string, x: number, y: number,
     place(c, f.type, x + f.dx, y + f.dy, { ...(f.loot ? { lootTable: f.loot } : {}), ...(f.doc ? { doc: f.doc } : {}) });
   }
   return b;
+}
+
+/**
+ * Dense forest can seal off small pockets of ground. Make every walkable tile
+ * reachable from the start by clearing single natural obstacles (trees,
+ * boulders, bushes) between isolated pockets and the connected area.
+ */
+function openPockets(c: Ctx, sx: number, sy: number): void {
+  const N = c.w * c.h;
+  const blocked = (i: number): boolean => {
+    if (!terrainDef(c.terrain[i]).walkable) return true;
+    const id = c.occ[i];
+    return !!id && objectDef(c.objects[id].type).solid;
+  };
+  const removable = (i: number): boolean => {
+    const id = c.occ[i];
+    if (!id || !terrainDef(c.terrain[i]).walkable) return false;
+    const k = objectDef(c.objects[id].type).kind;
+    return k === 'tree' || k === 'rock' || k === 'plant' || k === 'resource' || k === 'decor';
+  };
+  const reach = new Uint8Array(N);
+  const stack: number[] = [];
+  for (let iter = 0; iter < 40; iter++) {
+    reach.fill(0);
+    const s0 = sy * c.w + sx;
+    reach[s0] = 1;
+    stack.push(s0);
+    while (stack.length) {
+      const i = stack.pop()!;
+      const x = i % c.w;
+      const y = (i / c.w) | 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= c.w || ny >= c.h) continue;
+        const j = ny * c.w + nx;
+        if (reach[j] || blocked(j)) continue;
+        reach[j] = 1;
+        stack.push(j);
+      }
+    }
+    let changed = 0;
+    for (let i = 0; i < N; i++) {
+      if (reach[i] || blocked(i)) continue;
+      const x = i % c.w;
+      const y = (i / c.w) | 0;
+      // an unreachable open tile: clear one obstacle toward reachable ground
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 1 || ny < 1 || nx >= c.w - 1 || ny >= c.h - 1) continue;
+        const j = ny * c.w + nx;
+        if (!removable(j)) continue;
+        const touches = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([ex, ey]) => reach[(ny + ey) * c.w + nx + ex]);
+        if (!touches) continue;
+        const id = c.occ[j];
+        const o = c.objects[id];
+        const d = objectDef(o.type);
+        for (let fy = 0; fy < (d.h ?? 1); fy++) for (let fx = 0; fx < (d.w ?? 1); fx++) c.occ[(o.y + fy) * c.w + o.x + fx] = 0;
+        delete c.objects[id];
+        changed++;
+        break;
+      }
+    }
+    if (!changed) break;
+  }
 }
 
 function streamX(c: Ctx, startX: number, y: number): number {
@@ -393,6 +459,8 @@ export function generateWorld(opts: WorldOptions): GameState {
         place(c, 'reeds', x, y, { s: 1 });
       }
     }
+
+  openPockets(c, start.x, start.y);
 
   // --- Characters ------------------------------------------------------------
   const roster = generateRoster(seed, mode);

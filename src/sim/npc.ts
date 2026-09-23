@@ -15,6 +15,7 @@ import {
   pourInto,
   removeItem,
   slotsWeight,
+  liquidTotal,
 } from './inventory';
 import {
   ACTIONS,
@@ -109,17 +110,39 @@ function potAvailable(game: Game, c: Character): boolean {
 
 // --- movement --------------------------------------------------------------
 
-export function goTo(game: Game, c: Character, x: number, y: number, near: boolean): void {
+export function goTo(game: Game, c: Character, x: number, y: number, near: boolean, repath = false): void {
+  if (!repath) c.ai.stuck = 0;
   c.ai.targetX = x;
   c.ai.targetY = y;
-  c.ai.stuck = 0;
   if (near) {
     const path = findPath(game.index, c.x, c.y, x, y, 5000);
     // an empty path means "no route found": steer directly and let the stuck
-    // detector give up, instead of searching again every tick
+    // detector give up soon, instead of searching again every tick
     c.ai.path = path ?? [];
+    if (!path) {
+      c.ai.stuck = Math.max(c.ai.stuck, 3);
+      if (!findPath(game.index, c.x, c.y, game.home.x, game.home.y, 8000)) unstick(game, c);
+    }
   } else c.ai.path = undefined;
   c.ai.pathIndex = 0;
+}
+
+/**
+ * Safety net: a character boxed in by trees (for example after travelling
+ * abstractly while far from the player) squeezes out to open ground.
+ */
+function unstick(game: Game, c: Character): void {
+  const h = game.home;
+  for (let r = 1; r <= 8; r++) {
+    const spot = game.index.findTileNear(c.x, c.y, r, (x, y) => !game.index.isSolid(x, y) && Math.hypot(x + 0.5 - c.x, y + 0.5 - c.y) >= r - 0.5 && !!findPath(game.index, x, y, h.x, h.y, 3000));
+    if (spot) {
+      game.warn('npc', `${c.name} was boxed in and squeezed out to ${spot[0]},${spot[1]}`);
+      c.x = spot[0] + 0.5;
+      c.y = spot[1] + 0.5;
+      c.ai.path = undefined;
+      return;
+    }
+  }
 }
 
 function arrived(c: Character, x: number, y: number, r = 1.3): boolean {
@@ -154,7 +177,7 @@ export function updateNpc(game: Game, c: Character, dt: number, near: boolean): 
       c.y = spot[1] + 0.5;
     }
   }
-  if (near && !c.ai.path) goTo(game, c, tx, ty, true);
+  if (near && !c.ai.path) goTo(game, c, tx, ty, true, true);
   let wx = tx;
   let wy = ty;
   const path = c.ai.path;
@@ -180,9 +203,10 @@ export function updateNpc(game: Game, c: Character, dt: number, near: boolean): 
       if (c.ai.stuck > 1.5) {
         c.ai.path = undefined;
         if (c.ai.stuck > 5) {
-          // give up on this target
+          // give up on this target and on the task for a while: it is unreachable
           c.ai.targetX = undefined;
           c.ai.targetY = undefined;
+          markBlocked(game, c, c.ai.task, 30);
           c.ai.nextThink = game.state.time;
           c.ai.stuck = 0;
         }
@@ -191,7 +215,8 @@ export function updateNpc(game: Game, c: Character, dt: number, near: boolean): 
   } else {
     // abstract travel: straight line at walking pace
     const d = Math.hypot(wx - c.x, wy - c.y);
-    const step = Math.min(d, game.moveSpeed(c) * 0.9 * dt);
+    // abstract pace: terrain is ignored so off-screen travellers never freeze on an impassable tile
+    const step = Math.min(d, Math.max(2.5, game.moveSpeed(c)) * 0.9 * dt);
     if (d > 0) {
       const dx = (wx - c.x) / d;
       const dy = (wy - c.y) / d;
@@ -319,7 +344,7 @@ export function npcThink(game: Game, c: Character): void {
     add('sleep', (100 - n.energy) * 1.1 + (isNight(t) ? 45 : 0) - (dryFirst ? 70 : 0));
     if (dryFirst) add('warm', 120);
   }
-  if (n.hygiene < 25 && daylight(t) > 0.5 && game.state.weather.temp > 7) add('wash', 30 - n.hygiene * 0.5);
+  if (n.hygiene < 35 && daylight(t) > 0.5 && game.state.weather.temp > 6) add('wash', 18 + (35 - n.hygiene) * 1.2);
   // with no fire at camp, someone practical will make one when it gets dark or cold
   if (!campFire(game) && (daylight(t) < 0.6 || game.state.weather.temp < 8 || cold)) {
     add('makeFire', 30 + c.skills.survival * 4 + (c.traits.includes('practical') ? 10 : 0) + (cold ? 30 : 0));
@@ -490,18 +515,16 @@ function runTask(game: Game, c: Character, task: TaskId): void {
       if (env.rain > 0.4 && !env.shelter && !env.indoor && shelterNear(game, c)) return runTask(game, c, 'shelter');
       const fire = game.index.nearestOfType(FIRE_TYPES, c.x, c.y, 45, (o) => o.build === undefined);
       if (!fire) return doMakeFire(game, c);
+      // a dead fire and nothing to burn: collect deadfall first, then go to the fire
+      const carrying = countItem(c.inventory, 'branch') + countItem(c.inventory, 'firewood') + countItem(c.inventory, 'log');
+      if (!fire.lit && (fire.s ?? 0) < 20 && carrying === 0 && !findInCamp(game, (s) => s.id === 'branch' || s.id === 'firewood')) {
+        const df = game.index.nearestObjectRing(fire.x, fire.y, 20, (o) => o.type === 'deadfall');
+        if (df) return moveOrAct(game, c, df.x + 0.5, df.y + 0.5, 1.3, () => startAction(game, c, 'gather', gatherMinutes('deadfall') / workSpeed(c), { targetId: df.id }));
+        return runTask(game, c, 'shelter');
+      }
       return moveOrAct(game, c, fire.x + 0.5, fire.y + 1.6, 2.2, () => {
         if ((fire.s ?? 0) < 50 && feedFire(game, c, fire)) return;
-        if ((fire.s ?? 0) <= 0) {
-          // no fuel anywhere at camp: grab some deadfall close by
-          const df = game.index.nearestObjectRing(c.x, c.y, 15, (o) => o.type === 'deadfall');
-          if (df) {
-            goTo(game, c, df.x + 0.5, df.y + 0.5, true);
-            c.ai.task = 'gatherWood';
-            return;
-          }
-          return runTask(game, c, 'shelter');
-        }
+        if ((fire.s ?? 0) <= 0) return runTask(game, c, 'shelter');
         if (!fire.lit && fetchIgniter(game, c, fire)) {
           lightFire(game, c, fire);
           if (!fire.lit) return think(game, c, 1);
@@ -715,7 +738,26 @@ function doDrink(game: Game, c: Character): void {
   });
 }
 
-function pickFood(slots: (ItemStack | null)[], allowRaw: boolean): number {
+/** Food that must be cooked, mapped to the recipe that makes it edible. */
+const COOK: Record<string, string> = {
+  raw_meat: 'cook_meat',
+  raw_fish: 'cook_fish',
+  potato: 'bake_potato',
+  chanterelles: 'roast_mushrooms',
+  pasta: 'boil_pasta',
+  beans_dry: 'bean_stew',
+};
+
+let campKnifeCache = { t: -1, v: false };
+function canOpen(c: Character, id: string, game?: Game): boolean {
+  if (!itemDef(id).food?.needsOpen || !!bestTool(c, 'open') || !!bestTool(c, 'cut')) return true;
+  if (!game) return false;
+  // borrow a knife or hatchet from the camp stores
+  if (campKnifeCache.t !== game.state.time) campKnifeCache = { t: game.state.time, v: !!findInCamp(game, (s) => itemDef(s.id).tool?.tags.some((t) => t === 'cut' || t === 'open') === true) };
+  return campKnifeCache.v && Math.hypot(c.x - game.home.x, c.y - game.home.y) < CAMP_RADIUS;
+}
+
+function pickFood(slots: (ItemStack | null)[], allowRaw: boolean, c: Character, game?: Game): number {
   let best = -1;
   let bestScore = -Infinity;
   slots.forEach((s, i) => {
@@ -723,6 +765,7 @@ function pickFood(slots: (ItemStack | null)[], allowRaw: boolean): number {
     const f = itemDef(s.id).food;
     if (!f) return;
     if (!allowRaw && (f.risk ?? 0) >= 0.3) return;
+    if (!canOpen(c, s.id, game)) return;
     // prefer food that will spoil soon, and cooked food
     const score = (f.spoilPerDay > 0 ? (1 - (s.q ?? 1)) * 3 + f.spoilPerDay : 0) + (f.morale ?? 0) * 0.1 - (f.risk ?? 0) * 5 + (s.id === 'ration' ? -1 : 0);
     if (score > bestScore) {
@@ -734,26 +777,19 @@ function pickFood(slots: (ItemStack | null)[], allowRaw: boolean): number {
 }
 
 function doEat(game: Game, c: Character): void {
-  const desperate = c.needs.satiety < 10;
-  const i = pickFood(c.inventory, desperate);
+  // raw food is only eaten raw when there is no fire to cook it on
+  const desperate = c.needs.satiety < 10 && !campFire(game);
+  const i = pickFood(c.inventory, desperate, c);
   if (i >= 0) {
     const s = c.inventory[i]!;
-    if (itemDef(s.id).food?.needsOpen && !bestTool(c, 'open') && !bestTool(c, 'cut')) {
-      // cannot open: leave it in storage for someone with a knife
-    } else {
-      startAction(game, c, 'eat', itemDef(s.id).food!.eatMinutes ?? 5, { data: { slot: i, item: s.id, from: 'inv' } });
-      return think(game, c, 1);
-    }
+    startAction(game, c, 'eat', itemDef(s.id).food!.eatMinutes ?? 5, { data: { slot: i, item: s.id, from: 'inv' } });
+    return think(game, c, 1);
   }
-  const stored = campContainers(game).find((o) => pickFood(o.inv!, desperate) >= 0);
+  const stored = campContainers(game).find((o) => pickFood(o.inv!, desperate, c, game) >= 0);
   if (stored) {
     return moveOrAct(game, c, stored.x + 0.5, stored.y + 0.5, 1.6, () => {
-      const j = pickFood(stored.inv!, desperate);
-      if (j >= 0) {
-        const s = stored.inv![j]!;
-        if (itemDef(s.id).food?.needsOpen && !bestTool(c, 'open') && !bestTool(c, 'cut')) return;
-        eatStack(game, c, stored.inv!, j);
-      }
+      const j = pickFood(stored.inv!, desperate, c, game);
+      if (j >= 0) eatStack(game, c, stored.inv!, j);
     });
   }
   // raw food and a fire: cook it
@@ -783,9 +819,8 @@ function fetchIgniter(game: Game, c: Character, fire?: WorldObject): boolean {
 }
 
 function hasRawFood(game: Game, c: Character): boolean {
-  const raw = ['raw_meat', 'raw_fish', 'potato', 'chanterelles'];
-  if (c.inventory.some((s) => s && raw.includes(s.id))) return true;
-  return !!findInCamp(game, (s) => raw.includes(s.id));
+  if (c.inventory.some((s) => s && COOK[s.id])) return true;
+  return !!findInCamp(game, (s) => !!COOK[s.id]);
 }
 
 function doCook(game: Game, c: Character): void {
@@ -800,20 +835,22 @@ function doCook(game: Game, c: Character): void {
       else markBlocked(game, c, 'cook', 60);
     });
   }
-  const recipes = ['cook_meat', 'cook_fish', 'bake_potato', 'roast_mushrooms'];
-  for (const rid of recipes) {
-    const r = recipeById(rid)!;
-    const [inp, qty] = Object.entries(r.inputs)[0];
-    if (countItem(c.inventory, inp) >= qty) {
-      return moveOrAct(game, c, fire.x + 0.5, fire.y + 1.5, 1.8, () => startAction(game, c, 'craft', r.minutes / workSpeed(c, 'cooking'), { data: { recipe: rid } }));
-    }
+  // cook what we carry
+  for (const s of c.inventory) {
+    const rid = s ? COOK[s.id] : undefined;
+    if (rid && npcCraft(game, c, rid)) return;
   }
-  const stored = findInCamp(game, (s) => ['raw_meat', 'raw_fish', 'potato', 'chanterelles'].includes(s.id));
+  // fetch something cookable from storage
+  const stored = findInCamp(game, (s) => !!COOK[s.id]);
   if (stored) {
     const id = stored.o.inv![stored.slot]!.id;
-    return moveOrAct(game, c, stored.o.x + 0.5, stored.o.y + 0.5, 1.6, () => takeFrom(c, stored.o, id, id === 'chanterelles' ? 3 : id === 'potato' ? 2 : 2));
+    const need = Object.values(recipeById(COOK[id])!.inputs)[0] ?? 1;
+    return moveOrAct(game, c, stored.o.x + 0.5, stored.o.y + 0.5, 1.6, () => {
+      takeFrom(c, stored.o, id, need);
+      if (countItem(c.inventory, id) < need) markBlocked(game, c, 'cook', 60);
+    });
   }
-  think(game, c, 5);
+  markBlocked(game, c, 'cook', 60);
 }
 
 /** Put fuel on the fire. Returns true if something was done (an action started or fuel fetched). */
@@ -1107,7 +1144,15 @@ function doGatherWater(game: Game, c: Character): void {
 function npcCraft(game: Game, c: Character, recipeId: string, depth = 0): boolean {
   const r = recipeById(recipeId);
   if (!r || depth > 2) return false;
-  if (r.tool && r.tool !== 'boil' && !bestTool(c, r.tool)) {
+  if (r.tool === 'boil') {
+    if (liquidTotal(c.inventory) < 900) return false;
+    if (!bestTool(c, 'boil')) {
+      const pot = findInCamp(game, (s) => itemDef(s.id).tool?.tags.includes('boil') === true);
+      if (!pot) return false;
+      moveOrAct(game, c, pot.o.x + 0.5, pot.o.y + 0.5, 1.6, () => takeFrom(c, pot.o, pot.o.inv![pot.slot]!.id, 1));
+      return true;
+    }
+  } else if (r.tool && !bestTool(c, r.tool)) {
     const t = findInCamp(game, (s) => itemDef(s.id).tool?.tags.includes(r.tool!) === true);
     if (!t) return false;
     moveOrAct(game, c, t.o.x + 0.5, t.o.y + 0.5, 1.6, () => takeFrom(c, t.o, t.o.inv![t.slot]!.id, 1));
@@ -1274,14 +1319,17 @@ function canStartExpedition(game: Game, c: Character): boolean {
   const t = game.state.time;
   const h = hourOf(t);
   if (h < 7 || h > 13) return false;
-  if (n.satiety < 35 || n.hydration < 50 || n.energy < 55 || c.health.hp < 60) return false;
+  // hunger does not stop people from searching for food; weakness does
+  if (n.reserves < 25 || n.hydration < 45 || n.energy < 50 || c.health.hp < 60) return false;
   const w = game.state.weather.current;
   if (w === 'heavyRain' || w === 'thunderstorm' || w === 'snow' || w === 'fog') return false;
   const active = game.state.expeditions.filter((e) => e.status !== 'returned' && e.status !== 'lost').length;
   if (active >= 2) return false;
   if (!game.state.homePin) return false;
   const wantsTo = c.ai.order === 'explore' || c.traits.includes('curious') || c.traits.includes('brave') || c.traits.includes('riskTaking');
-  return wantsTo && (c.ai.order === 'explore' || game.rng.chance(0.08));
+  // with the stores running empty, even cautious people go looking for food
+  const desperate = game.campFoodDays() < 0.8 && (c.traits.includes('practical') || c.traits.includes('hardworking') || c.skills.survival >= 3);
+  return (wantsTo || desperate) && (c.ai.order === 'explore' || game.rng.chance(desperate ? 0.15 : 0.08));
 }
 
 function chooseDestination(game: Game, c: Character): { x: number; y: number; name: string; kind: Expedition['kind'] } {
