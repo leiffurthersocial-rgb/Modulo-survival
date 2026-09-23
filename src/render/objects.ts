@@ -411,6 +411,62 @@ const DRAW: Record<string, Drawer> = {
     p.rect(fx + 2, fy + 12, 2, 2, WOOD_D);
     p.rect(fx + 12, fy + 12, 2, 2, WOOD_D);
   },
+  woven_chest: (p, fx, fy) => {
+    shadow(p, fx + 8, fy + 14, 7, 2);
+    box(p, fx + 1, fy + 2, 14, 12, 4, '#9a7a4a', false);
+    // wicker weave
+    for (let y = fy + 7; y < fy + 13; y += 2) for (let x = fx + 2 + ((y >> 1) % 2); x < fx + 14; x += 2) p.px(x, y, '#7a5a30');
+    p.hline(fx + 1, fx + 14, fy + 6, '#6a4a28');
+    p.rect(fx + 7, fy + 5, 2, 2, '#5a3e20');
+  },
+  pegged_chest: (p, fx, fy) => {
+    box(p, fx + 1, fy, 14, 14, 5, '#8a6a42');
+    for (const x of [fx + 3, fx + 12]) for (const y of [fy + 7, fy + 11]) p.px(x, y, '#c8a070');
+    p.vline(fx + 8, fy + 6, fy + 12, '#6a4a2c');
+  },
+  woodpile: (p, fx, fy, _w, _h, _rng, o, _s, snow) => {
+    shadow(p, fx + 8, fy + 14, 8, 2);
+    // two posts and a bark roof over stacked log ends
+    p.vline(fx + 1, fy + 1, fy + 13, WOOD_D);
+    p.vline(fx + 14, fy + 1, fy + 13, WOOD_D);
+    const n = (o.inv ?? []).reduce((a, s) => a + (s ? s.qty : 0), 0);
+    const rows = Math.min(4, Math.ceil(n / 12));
+    for (let r = 0; r < rows; r++)
+      for (let i = 0; i < 4; i++) {
+        const cx = fx + 3.5 + i * 3;
+        const cy = fy + 11.5 - r * 3;
+        p.ellipse(cx, cy, 1.6, 1.4, '#b08a5a');
+        p.px(Math.round(cx), Math.round(cy), '#8a6a42');
+      }
+    p.rect(fx, fy - 1, 16, 2, '#5a3e24');
+    p.hline(fx, fx + 15, fy - 1, '#7a5634');
+    if (snow) p.rect(fx, fy - 2, 16, 1, '#eef3f6');
+  },
+  food_store: (p, fx, fy, _w, _h, _rng, _o, _s, snow) => {
+    shadow(p, fx + 8, fy + 13, 8, 2);
+    // stone rim and a plank lid
+    p.ellipse(fx + 8, fy + 9, 8, 4.5, STONE_D);
+    for (let i = 0; i < 9; i++) p.ellipse(fx + 1.5 + i * 1.6, fy + 9 + (i % 2 ? 1 : -0.5), 1.4, 1.2, i % 3 ? STONE : STONE_L);
+    p.rect(fx + 3, fy + 5, 10, 5, WOOD);
+    p.hline(fx + 3, fx + 12, fy + 5, WOOD_L);
+    p.vline(fx + 6, fy + 5, fy + 9, WOOD_D);
+    p.vline(fx + 10, fy + 5, fy + 9, WOOD_D);
+    if (snow) p.rect(fx + 3, fy + 4, 10, 1, '#eef3f6');
+  },
+  tool_rack: (p, fx, fy, _w, _h, _rng, o) => {
+    shadow(p, fx + 8, fy + 14, 7, 1.5);
+    p.vline(fx + 2, fy - 4, fy + 13, WOOD_D);
+    p.vline(fx + 13, fy - 4, fy + 13, WOOD_D);
+    p.hline(fx + 1, fx + 14, fy - 3, WOOD);
+    p.hline(fx + 1, fx + 14, fy + 5, WOOD);
+    // hanging tools show how full it is
+    const n = (o.inv ?? []).filter(Boolean).length;
+    for (let i = 0; i < Math.min(4, n); i++) {
+      const x = fx + 4 + i * 3;
+      p.vline(x, fy - 2, fy + 4, i % 2 ? '#8a5e36' : '#6a4a2c');
+      p.rect(x - 1, fy - 2, 3, 2, i % 2 ? '#a8acb0' : '#7a7a72');
+    }
+  },
   wooden_crate: (p, fx, fy) => {
     box(p, fx + 1, fy, 14, 14, 5, '#9a7448');
     p.line(fx + 2, fy + 6, fx + 13, fy + 12, '#6a4a2c');
@@ -507,7 +563,8 @@ function visualKey(o: WorldObject, season: SeasonId, snow: boolean): string {
   else if (t === 'campfire' || t === 'fire_pit') state = (o.s ?? 0) > 0 || o.lit ? '1' : '0';
   else if (t === 'garden_plot') state = o.crop ? `${o.crop.id}${Math.floor(o.crop.growth * 4)}${o.crop.health < 0.35 ? 'd' : ''}` : '-';
   else if (t === 'snare') state = String(o.s2 ?? 0);
-  else if (t === 'drying_rack') state = String((o.inv ?? []).filter(Boolean).length);
+  else if (t === 'drying_rack' || t === 'tool_rack') state = String(Math.min(4, (o.inv ?? []).filter(Boolean).length));
+  else if (t === 'woodpile') state = String(Math.min(4, Math.ceil((o.inv ?? []).reduce((a, s) => a + (s ? s.qty : 0), 0) / 12)));
   else if (t === 'rain_collector') state = (o.water?.ml ?? 0) > 20000 ? 'f' : 'e';
   else if (t === 'latrine') state = (o.s ?? 0) > 70 ? 'f' : '';
   return `${t}:${(o.v ?? 0) % 4}:${season}:${snow ? 1 : 0}:${state}`;

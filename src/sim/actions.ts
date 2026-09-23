@@ -655,12 +655,12 @@ export function lightFire(game: Game, c: Character, o: WorldObject): boolean {
     if (!game.state.hints.includes('firstFire')) game.state.hints.push('firstFire');
     return true;
   }
-  game.charMessage(c, ign.stack.id === 'matches' ? 'The match sputters out. Try again.' : 'The flame will not catch. Try again.', 'warn');
+  game.charMessage(c, ign.stack.id === 'matches' ? 'The match sputters out. Try again.' : ign.stack.id === 'bow_drill' ? 'The spindle smokes but no ember forms. Try again.' : 'The flame will not catch. Try again.', 'warn');
   gainSkill(game, c, 'survival', 0.02);
   if (ign.stack.charge <= 0) {
     const i = c.inventory.indexOf(ign.stack);
     if (i >= 0) c.inventory[i] = null;
-    game.charMessage(c, ign.stack.id === 'matches' ? 'That was the last match.' : 'The lighter is empty.', 'bad');
+    game.charMessage(c, ign.stack.id === 'matches' ? 'That was the last match.' : ign.stack.id === 'bow_drill' ? 'The bow drill is worn out. Make a new one.' : 'The lighter is empty.', 'bad');
   }
   return false;
 }

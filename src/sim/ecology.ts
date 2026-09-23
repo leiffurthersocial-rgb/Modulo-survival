@@ -40,7 +40,7 @@ export function updateSpoilage(game: Game, dt: number): void {
       continue;
     }
     // the ground is cooler than the air in the shade; buildings keep things dry
-    spoilSlots(o.inv, dt, base * (o.type === 'pile' ? 1.2 : 0.9));
+    spoilSlots(o.inv, dt, base * (o.type === 'pile' ? 1.2 : 0.9) * (objectDef(o.type).storage?.spoil ?? 1));
   }
 }
 

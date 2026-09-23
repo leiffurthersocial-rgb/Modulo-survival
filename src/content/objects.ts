@@ -59,7 +59,12 @@ export interface ObjectDef {
   slow?: number;
   /** seats improve morale while sitting/socialising nearby */
   seat?: boolean;
+  /** storage built for particular things; spoil multiplies food spoilage inside */
+  storage?: { accepts?: StorageClass[]; spoil?: number };
 }
+
+/** Mirrors SortClass in sim/storage (kept here so content does not import sim). */
+export type StorageClass = 'food' | 'wood' | 'tools' | 'medical' | 'water' | 'clothing' | 'materials' | 'misc';
 
 const O: ObjectDef[] = [
   // Natural
@@ -106,7 +111,7 @@ const O: ObjectDef[] = [
   { id: 'carcass', name: 'Carcass', kind: 'carcass', solid: false },
   { id: 'pile', name: 'Dropped Items', kind: 'furniture', solid: false, container: 12 },
   { id: 'hunting_stand', name: 'Hunting Stand', kind: 'furniture', solid: true },
-  { id: 'supply_bag', name: 'Group Supply Bag', kind: 'furniture', solid: false, container: 20 },
+  { id: 'supply_bag', name: 'Group Supply Bag', kind: 'furniture', solid: false, container: 36 },
 
   // Player-buildable structures
   {
@@ -149,6 +154,29 @@ const O: ObjectDef[] = [
   {
     id: 'wooden_crate', name: 'Wooden Crate', kind: 'structure', solid: true, container: 20, flammable: true,
     build: { category: 'storage', materials: { plank: 4, nails: 12 }, minutes: 30, tool: 'hammer', desc: 'A nailed crate. Keeps animals out of supplies.' },
+  },
+  {
+    id: 'woven_chest', name: 'Woven Chest', kind: 'structure', solid: true, container: 12, flammable: true,
+    build: { category: 'storage', materials: { branch: 10, cordage: 4 }, minutes: 35, desc: 'A lidded basket of woven branches. Needs no tools.' },
+  },
+  {
+    id: 'pegged_chest', name: 'Pegged Chest', kind: 'structure', solid: true, container: 20, flammable: true,
+    build: { category: 'storage', materials: { plank: 4, wooden_pegs: 12 }, minutes: 35, tool: 'hammer', desc: 'Boards held with wooden pegs. As good as a nailed crate.' },
+  },
+  {
+    id: 'woodpile', name: 'Woodpile', kind: 'structure', solid: true, container: 24, flammable: true,
+    storage: { accepts: ['wood'] },
+    build: { category: 'storage', materials: { branch: 6 }, minutes: 15, desc: 'A covered rack that keeps firewood, logs and branches dry. Takes only wood.' },
+  },
+  {
+    id: 'food_store', name: 'Food Store', kind: 'structure', solid: true, container: 20,
+    storage: { accepts: ['food'], spoil: 0.55 },
+    build: { category: 'storage', materials: { log: 2, stone: 6, branch: 6 }, minutes: 50, desc: 'A shaded, stone-lined pit with a lid. Food keeps almost twice as long. Takes only food.' },
+  },
+  {
+    id: 'tool_rack', name: 'Tool Rack', kind: 'structure', solid: true, container: 10, flammable: true,
+    storage: { accepts: ['tools'] },
+    build: { category: 'storage', materials: { branch: 6, cordage: 3 }, minutes: 25, desc: 'Pegs and hooks for tools, lights and pots, so everyone can find them. Takes only tools.' },
   },
   {
     id: 'rain_collector', name: 'Rain Collector', kind: 'structure', solid: true,

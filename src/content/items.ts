@@ -135,6 +135,10 @@ const I: ItemDef[] = [
   { id: 'fishing_rod', name: 'Fishing Rod', desc: 'A branch rod with line and hook.', category: 'tool', weight: 0.4, maxStack: 1, tool: { tags: ['fish'], power: 1, wear: 0.01 } },
   { id: 'spear', name: 'Spear', desc: 'A long straight branch, fire-hardened and sharpened.', category: 'weapon', weight: 1.2, maxStack: 1, weapon: { damage: 22, reach: 1.8 }, tool: { tags: [], power: 1, wear: 0.02 } },
   { id: 'matches', name: 'Matches', desc: 'A box of matches. Damp matches rarely strike.', category: 'tool', weight: 0.02, maxStack: 1, charges: 30, tool: { tags: ['ignite'], power: 0.8, wear: 0 } },
+  { id: 'stone_knife', name: 'Stone Blade', desc: 'A knapped flake of stone with a wrapped grip. Cuts, badly.', category: 'tool', weight: 0.2, maxStack: 1, tool: { tags: ['cut', 'open'], power: 0.45, wear: 0.008 }, weapon: { damage: 5, reach: 0.9 } },
+  { id: 'stone_hammer', name: 'Stone Hammer', desc: 'A heavy stone lashed to a handle. Drives nails and pegs.', category: 'tool', weight: 1, maxStack: 1, tool: { tags: ['hammer'], power: 0.55, wear: 0.008 }, weapon: { damage: 8, reach: 1 } },
+  { id: 'bow_drill', name: 'Bow Drill', desc: 'Bow, spindle and fireboard. Hard work, but it makes fire without matches.', category: 'tool', weight: 0.4, maxStack: 1, charges: 25, tool: { tags: ['ignite'], power: 0.4, wear: 0 } },
+  { id: 'wooden_pegs', name: 'Wooden Pegs', desc: 'Carved hardwood pegs. Hold boards together in place of nails.', category: 'material', weight: 0.01, maxStack: 60 },
   { id: 'lighter', name: 'Lighter', desc: 'A disposable lighter.', category: 'tool', weight: 0.02, maxStack: 1, charges: 120, tool: { tags: ['ignite'], power: 1, wear: 0 } },
 
   // --- Light ---------------------------------------------------------------
@@ -165,7 +169,7 @@ const I: ItemDef[] = [
   { id: 'sleeping_bag', name: 'Sleeping Bag', desc: 'Makes sleeping on the ground bearable.', category: 'misc', weight: 1.4, maxStack: 1 },
 
   // --- Containers, seeds, misc ---------------------------------------------
-  { id: 'duffel_bag', name: 'Group Supply Bag', desc: 'A heavy duffel bag with the class supplies. Set it down to store it.', category: 'container', weight: 1.5, maxStack: 1, containerSlots: 20, places: 'supply_bag' },
+  { id: 'duffel_bag', name: 'Group Supply Bag', desc: 'A heavy duffel bag with the class supplies. Set it down to store it.', category: 'container', weight: 1.5, maxStack: 1, containerSlots: 36, places: 'supply_bag' },
   { id: 'seed_potatoes', name: 'Seed Potatoes', desc: 'Sprouting potatoes, ready for planting.', category: 'seed', weight: 0.2, maxStack: 20, seed: 'potato' },
   { id: 'bean_seeds', name: 'Bean Seeds', desc: 'A paper bag of bean seeds.', category: 'seed', weight: 0.02, maxStack: 30, seed: 'bean' },
   { id: 'carrot_seeds', name: 'Carrot Seeds', desc: 'A packet of carrot seeds.', category: 'seed', weight: 0.01, maxStack: 30, seed: 'carrot' },

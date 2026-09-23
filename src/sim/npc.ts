@@ -33,8 +33,9 @@ import { ensureLoot } from './loot';
 import { FIRE_TYPES, SHELTER_TYPES } from './environment';
 import { attackAnimal } from './wildlife';
 import { clothingDirt } from './body';
+import { STORAGE_TYPES, bestBoxFor, findMisplaced, SORT_LABEL, sortClassOf } from './storage';
 
-export const STORAGE_TYPES = ['storage_cache', 'wooden_crate', 'supply_bag'];
+export { STORAGE_TYPES };
 const CAMP_RADIUS = 22;
 
 type TaskId =
@@ -65,6 +66,8 @@ type TaskId =
   | 'makeFire'
   | 'purify'
   | 'buildShelter'
+  | 'sortStorage'
+  | 'buildStore'
   | 'buildLatrine';
 
 const TASK_LABEL: Record<TaskId, string> = {
@@ -73,7 +76,7 @@ const TASK_LABEL: Record<TaskId, string> = {
   gatherWood: 'Gathering firewood', gatherFood: 'Foraging', gatherWater: 'Fetching water', build: 'Building', cook: 'Cooking',
   tendFire: 'Tending the fire', fish: 'Fishing', hunt: 'Hunting', socialise: 'Sitting with the others', follow: 'Following you',
   stay: 'Waiting here', goHome: 'Returning to camp', expedition: 'On an expedition', deposit: 'Storing supplies',
-  makeFire: 'Making a fire', purify: 'Boiling water', buildShelter: 'Building a shelter', buildLatrine: 'Digging a latrine',
+  makeFire: 'Making a fire', purify: 'Boiling water', buildShelter: 'Building a shelter', sortStorage: 'Sorting the stores', buildStore: 'Building a store', buildLatrine: 'Digging a latrine',
 };
 
 /** Remember that a task just finished or could not proceed. */
@@ -296,6 +299,9 @@ function danger(game: Game, c: Character): { x: number; y: number } | undefined 
 
 // --- decision making -------------------------------------------------------------
 
+/** Work that does not need the whole group at once. */
+const SHARED_WORK = new Set<string>(['buildShelter', 'buildLatrine', 'buildStore', 'sortStorage', 'gatherWood', 'gatherFood', 'gatherWater', 'fish', 'hunt', 'build', 'cook', 'tendFire', 'makeFire', 'purify']);
+
 interface Option {
   task: TaskId;
   score: number;
@@ -316,10 +322,14 @@ export function npcThink(game: Game, c: Character): void {
   const recent = (c.ai.recent ??= {});
   // tasks that recently failed or finished lose appeal for a while (prevents loops)
   const blocked = (c.ai.blocked ??= {});
+  // how many others already work on each task: crowding spreads the work out
+  const crowd: Record<string, number> = {};
+  for (const o of game.livingCharacters()) if (o !== c && !game.isPlayer(o)) crowd[o.ai.task] = (crowd[o.ai.task] ?? 0) + 1;
   const add = (task: TaskId, score: number) => {
     if ((blocked[task] ?? 0) > t) return;
     const cool = recent[task] !== undefined && t - recent[task] < 90 ? 30 : 0;
-    opts.push({ task, score: score + (c.ai.task === task ? 6 : 0) - cool });
+    const crowded = SHARED_WORK.has(task) ? Math.max(0, (crowd[task] ?? 0) - 1) * 4 : 0;
+    opts.push({ task, score: score + (c.ai.task === task ? 6 : 0) - cool - crowded });
   };
   const order = c.ai.order;
   const exp = c.ai.expeditionId !== undefined ? game.state.expeditions.find((e) => e.id === c.ai.expeditionId) : undefined;
@@ -392,6 +402,11 @@ export function npcThink(game: Game, c: Character): void {
         // a dry place to sleep for everyone, most urgent until half the group is covered
         if (cap < living) add('buildShelter', 12 + c.skills.construction * 2 + hw + (living - cap) * 1.2 + (cap < living * 0.5 ? 8 : 0) + (cap === 0 ? 20 : 0));
         if (!game.index.nearestOfType('latrine', h.x, h.y, CAMP_RADIUS + 6)) add('buildLatrine', 14 + (c.traits.includes('practical') ? 10 : 0) + hw);
+        // tidy camp: things put away where they belong, and proper stores once there is a lot
+        const daytime = daylight(t) > 0.5;
+        if (daytime && (c.ai.sortItem || findMisplaced(campContainers(game)))) add('sortStorage', 9 + (c.traits.includes('practical') ? 8 : 0) + (c.traits.includes('hardworking') ? 3 : 0) + (c.ai.sortItem ? 20 : 0));
+        if (daytime && campStock(game, 'wood') > 30 && !game.index.nearestOfType('woodpile', h.x, h.y, CAMP_RADIUS)) add('buildStore', 11 + hw);
+        else if (daytime && campStock(game, 'food') > 12 && !game.index.nearestOfType('food_store', h.x, h.y, CAMP_RADIUS)) add('buildStore', 11 + hw + (c.skills.cooking >= 4 ? 4 : 0));
       }
       if (hasRawFood(game, c) && campFire(game)) add('cook', 18 + c.skills.cooking * 2 + clamp((1 - foodDays) * 15, 0, 15));
       if (!exp && canStartExpedition(game, c)) add('expedition', 12 + (c.traits.includes('curious') ? 12 : 0) + (c.traits.includes('brave') ? 6 : 0));
@@ -636,6 +651,13 @@ function runTask(game: Game, c: Character, task: TaskId): void {
       return doDeposit(game, c);
     case 'makeFire':
       return doMakeFire(game, c);
+    case 'sortStorage':
+      return doSortStorage(game, c);
+    case 'buildStore': {
+      const wood = campStock(game, 'wood') > 30 && !game.index.nearestOfType('woodpile', h.x, h.y, CAMP_RADIUS);
+      if (wood) return doAutoBuild(game, c, 'woodpile', 'buildStore', 'The wood is everywhere. I will stack a proper woodpile.');
+      return doAutoBuild(game, c, 'food_store', 'buildStore', 'Our food will rot like this. I am building a cool store for it.');
+    }
     case 'buildShelter': {
       // tarps from the supply bag make the biggest, driest shelters: use them first
       const hasTarp = (id: string) => countItem(c.inventory, id) > 0 || !!findInCamp(game, (s) => s.id === id);
@@ -937,8 +959,57 @@ function carryingSupplies(c: Character): boolean {
   return n >= 6 || loadRatio(c) > 0.85;
 }
 
+/** Items of a sort class held across camp storage. */
+function campStock(game: Game, cls: ReturnType<typeof sortClassOf>): number {
+  let n = 0;
+  for (const o of campContainers(game)) for (const s of o.inv!) if (s && sortClassOf(s.id) === cls) n += s.qty;
+  return n;
+}
+
+/**
+ * Carry one misplaced stack from the box it sits in to the box made for it.
+ * Two legs: fetch, then deliver; the item and target are remembered between.
+ */
+function doSortStorage(game: Game, c: Character): void {
+  const boxes = campContainers(game);
+  if (c.ai.sortItem) {
+    const to = c.ai.sortTo !== undefined ? game.state.objects[c.ai.sortTo] : undefined;
+    const held = c.inventory.findIndex((s) => s?.id === c.ai.sortItem);
+    if (held < 0) {
+      c.ai.sortItem = undefined;
+      return think(game, c, 0.5);
+    }
+    const target = to?.inv && bestBoxFor([to], c.inventory[held]!) ? to : bestBoxFor(boxes, c.inventory[held]!);
+    if (!target?.inv) {
+      c.ai.sortItem = undefined;
+      return doDeposit(game, c);
+    }
+    return moveOrAct(game, c, target.x + 0.5, target.y + 1.5, 1.8, () => {
+      const s = c.inventory[held];
+      if (s) c.inventory[held] = addItem(target.inv!, s);
+      if (game.rng.chance(0.2)) speak(game, c, [`${SORT_LABEL[sortClassOf(c.ai.sortItem!)]} goes here.`, 'There. Now we can find things.', 'Much better.'], 1);
+      c.ai.sortItem = undefined;
+      c.ai.sortTo = undefined;
+      markDone(game, c, 'sortStorage');
+    });
+  }
+  const m = findMisplaced(boxes);
+  if (!m) return markBlocked(game, c, 'sortStorage', 90);
+  return moveOrAct(game, c, m.from.x + 0.5, m.from.y + 1.5, 1.8, () => {
+    const s = m.from.inv![m.slot];
+    if (!s) return;
+    const left = addItem(c.inventory, s);
+    m.from.inv![m.slot] = left;
+    if (left) return markBlocked(game, c, 'sortStorage', 60); // hands full
+    c.ai.sortItem = s.id;
+    c.ai.sortTo = m.to.id;
+  });
+}
+
 function doDeposit(game: Game, c: Character): void {
-  const store = campContainers(game)[0];
+  const boxes = campContainers(game);
+  // head for a general box (or any box) and put each thing where it belongs
+  const store = boxes.find((o) => !objectDef(o.type).storage?.accepts && !o.sort) ?? boxes[0];
   const fire = campFire(game);
   const target = store ?? fire;
   const tx = target ? target.x + 0.5 : game.home.x;
@@ -975,7 +1046,12 @@ function doDeposit(game: Game, c: Character): void {
     if (store?.inv) {
       leftovers = [];
       for (const s of out) {
-        const left = addItem(store.inv, s);
+        let left: ItemStack | null = s;
+        for (let tries = 0; left && tries < 4; tries++) {
+          const box = bestBoxFor(boxes, left);
+          if (!box?.inv) break;
+          left = addItem(box.inv, left);
+        }
         if (left) leftovers.push(left);
       }
     }

@@ -6,6 +6,7 @@ import { objectDef } from '@/content/objects';
 import type { EquipSlot, ItemStack } from '@/sim/types';
 import { addItem, carryCapacity, describeStack, totalWeight, slotCapacity } from '@/sim/inventory';
 import { consumeNow, itemActions, unequip } from '@/sim/interactions';
+import { boxAccepts, boxPurpose, STORAGE_TYPES } from '@/sim/storage';
 import { ensureLoot } from '@/sim/loot';
 
 const EQUIP: [EquipSlot, string][] = [
@@ -41,6 +42,10 @@ export function InventoryPanel({ session }: { session: GameSession }) {
     if (!box?.inv) return;
     const s = p.inventory[i];
     if (!s) return;
+    if (!boxAccepts(box, s.id)) {
+      session.toast(`The ${objectDef(box.type).name.toLowerCase()} is for ${boxPurpose(box).toLowerCase()}.`, 'warn');
+      return;
+    }
     const left = addItem(box.inv, s);
     p.inventory[i] = left;
     if (box.type === 'pile' && left) box.inv.push(left), (p.inventory[i] = null);
@@ -118,6 +123,7 @@ export function InventoryPanel({ session }: { session: GameSession }) {
               <h3>{box.type === 'corpse' ? box.label : objectDef(box.type).name}</h3>
               <button onClick={takeAll}>Take all</button>
             </div>
+            {STORAGE_TYPES.includes(box.type) && <span className="faint" style={{ fontSize: '0.85em' }}>For: {boxPurpose(box)}</span>}
             <div className="slots" style={{ maxWidth: 5 * 63 }}>
               {box.inv.map((s, i) => (
                 <ItemSlot key={i} stack={s} selected={sel?.from === 'box' && sel.i === i} onClick={() => setSel({ from: 'box', i })} onDoubleClick={() => takeFromBox(i)} />

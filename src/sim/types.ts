@@ -220,6 +220,9 @@ export interface NpcAI {
   recent?: Record<string, number>;
   /** task id -> game minute until which the task is known to be impossible */
   blocked?: Record<string, number>;
+  /** sorting the stores: carrying this item to that box */
+  sortItem?: string;
+  sortTo?: number;
 }
 
 export interface Character {
@@ -294,6 +297,8 @@ export interface WorldObject {
   doc?: string;
   /** name for corpse objects */
   label?: string;
+  /** what a general storage box has been marked for (a SortClass) */
+  sort?: string;
   /** game minute when regrowth completes */
   regrow?: number;
 }

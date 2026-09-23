@@ -24,6 +24,7 @@ import {
 } from './actions';
 import { dismantle } from './building';
 import { clothingDirt } from './body';
+import { SORT_CLASSES, SORT_LABEL, STORAGE_TYPES, type SortClass } from './storage';
 import { attackAnimal } from './wildlife';
 import { docById, readDoc } from './loot';
 import { makeStack } from '@/gen/characters';
@@ -217,6 +218,16 @@ export function getInteractions(game: Game, c: Character, t: Target): Interactio
     } else add('open', 'Open', () => game.bus.emit('openContainer', { id: o.id }));
   }
   if (o.type === 'drying_rack') add('open', 'Hang food / take down', () => game.bus.emit('openContainer', { id: o.id }));
+  // general storage can be marked for one kind of thing; the others will sort it
+  if (STORAGE_TYPES.includes(o.type) && !d.storage?.accepts) {
+    const cur = o.sort as SortClass | undefined;
+    const order: (SortClass | undefined)[] = [undefined, ...SORT_CLASSES];
+    const next = order[(order.indexOf(cur) + 1) % order.length];
+    add('label', `Mark for: ${cur ? SORT_LABEL[cur] : 'Anything'} (change to ${next ? SORT_LABEL[next] : 'Anything'})`, () => {
+      o.sort = next;
+      game.message(next ? `The ${d.name.toLowerCase()} is now for ${SORT_LABEL[next].toLowerCase()}. The others will sort things into it.` : `The ${d.name.toLowerCase()} takes anything again.`, 'info');
+    });
+  }
   if (o.type === 'supply_bag') add('pickup', 'Pick up the bag', () => startAction(game, c, 'pickupBag', 1, { targetId: o.id }));
 
   // fire

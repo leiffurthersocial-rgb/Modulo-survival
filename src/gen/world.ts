@@ -488,8 +488,19 @@ export function generateWorld(opts: WorldOptions): GameState {
     makeStack('tarp', 2),
     makeStack('rope', 2),
     makeStack('matches', 1),
+    makeStack('matches', 1),
+    makeStack('lighter', 1),
+    // the class brought a proper set of tools from the school's camping gear
     makeStack('hatchet', 1),
+    makeStack('hunting_knife', 1),
+    makeStack('pocket_knife', 1),
+    makeStack('folding_saw', 1),
+    makeStack('hammer', 1),
+    makeStack('nails', 60),
     makeStack('folding_shovel', 1),
+    makeStack('gloves', 1),
+    makeStack('flashlight', 1),
+    makeStack('jerrycan', 1),
     makeStack('bandage', 6),
     makeStack('antiseptic', 1),
     makeStack('painkillers', 10),
@@ -502,7 +513,7 @@ export function generateWorld(opts: WorldOptions): GameState {
     makeStack('water_bottle', 1, { liquid: { ml: 1000, contam: 0 } }),
     makeStack('map', 1),
   ];
-  const bagInv: (ItemStack | null)[] = new Array(20).fill(null);
+  const bagInv: (ItemStack | null)[] = new Array(36).fill(null);
   supplies.forEach((s, i) => (bagInv[i] = s));
   place(c, 'supply_bag', start.x + 1, start.y - 1, { inv: bagInv });
 
