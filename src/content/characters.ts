@@ -172,7 +172,7 @@ export const KNOWN_GIRLS: KnownCharacter[] = [
     skills: { hunting: 4, trapping: 4, survival: 3 },
   },
   {
-    id: 'luana', name: 'Luana', sex: 'f', description: 'Black hair in a bob, brown eyes. Average height, athletic build.',
+    id: 'noemi', name: 'Noemi', sex: 'f', description: 'Black hair in a bob, brown eyes. Average height, athletic build.',
     appearance: { ...base, skin: SKIN.dark, hairColor: HAIR.black, hairStyle: 'bob', eyeColor: EYES.brown, height: 'average', build: 'athletic', shirtColor: '#8a7a5a', pantsColor: '#34302c' },
     traits: ['hardworking', 'social', 'compassionate'],
     background: 'Built treehouses and rafts with older cousins every summer.',

@@ -11,8 +11,7 @@ describe('character generation', () => {
     expect(r.filter((c) => c.sex === 'm').map((c) => c.name)).toEqual(KNOWN_BOYS.map((b) => b.name));
     expect(r.filter((c) => c.sex === 'f').map((c) => c.name)).toEqual(KNOWN_GIRLS.map((g) => g.name));
     expect(new Set(r.map((c) => c.id)).size).toBe(16);
-    expect(r.map((c) => c.name)).not.toContain('Emma');
-    expect(r.map((c) => c.name)).not.toContain('Lina');
+    for (const n of ['Emma', 'Lina', 'Vanessa', 'Luana']) expect(r.map((c) => c.name)).not.toContain(n);
   });
 
   it('keeps everyone identical across worlds: looks, traits, stats, skills and background', () => {

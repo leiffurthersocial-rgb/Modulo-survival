@@ -34,23 +34,27 @@ caching for hashed assets, and a rewrite so any route falls back to
 | Key | Action |
 | --- | --- |
 | WASD / arrows | Move (Shift to sprint) |
-| E / Space | Interact with what you face (opens a numbered menu if there are several options; press 1-9) |
+| E / Space | Use the thing directly in front of you, if within reach (opens a numbered menu if there are several options; press 1-9) |
 | Mouse click | Interact with a nearby object, classmate or animal |
 | F | Strike at the nearest animal |
 | I / Tab | Inventory, equipment and open containers |
 | K | Crafting (cooking appears near a lit fire) |
-| B | Build menu; place with click or E, cancel with right-click or Esc |
+| B | Build menu; place with click or E, cancel with right-click or P |
 | M | Map with fog of war and your own markers |
 | G | Group: classmates, orders, expeditions |
-| P | Camp overview |
+| O | Camp overview |
 | C | Character sheet |
 | J | Journal, found documents, calendar |
 | Z | Sleep / wake up |
 | T | Relieve yourself (uses a latrine if you stand at one) |
 | H | Set the Home Pin (the group makes camp there) |
 | L | Hold or put away a flashlight or torch |
-| Esc | Pause menu: save, load, export, settings |
-| F1 or ? | How to play |
+| P (or Esc) | Close a window, or open the pause menu: save, load, export, settings |
+| ? | How to play |
+
+The layout works on an iPad keyboard, which has no Esc or function keys.
+Letter keys follow the character printed on the key, so they stay correct on
+Swiss and German QWERTZ layouts; WASD movement uses key positions.
 
 Touch controls (joystick and buttons) are off by default and can be enabled in
 Settings. Debug tools are only available with `?debug` in the URL (or in dev
@@ -67,7 +71,7 @@ Everything listed here works in the game and affects the simulation.
   Trees, plants, containers and buildings persist; felled trees stay stumps and
   slowly regrow.
 - **Characters**: a fixed class of sixteen: the eight known boys and eight
-  girls (Mia, Nora, Seraina, Alina, Livia, Chiara, Julia, Luana). Everyone's
+  girls (Mia, Nora, Seraina, Alina, Livia, Chiara, Julia, Noemi). Everyone's
   looks, traits, skills, attributes and background are the same in every
   world; the seed only changes the forest and what people carry. Attributes
   add up to the same budget for everyone, so nobody is strictly better.

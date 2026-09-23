@@ -45,48 +45,49 @@ export interface Interaction {
 
 export const REACH = 1.7;
 
-/** Find what the character is facing / standing next to. */
+/**
+ * What the character is facing: the first thing along a short line straight
+ * ahead, within reach. Nothing beside or behind them is picked up, so E always
+ * acts on what is in front. With a tile given (a click), that spot is used.
+ */
 export function findTarget(game: Game, c: Character, tileX?: number, tileY?: number): Target | undefined {
+  if (tileX !== undefined && tileY !== undefined) return targetAt(game, c, tileX, tileY);
   const fx = c.facing === 'left' ? -1 : c.facing === 'right' ? 1 : 0;
   const fy = c.facing === 'up' ? -1 : c.facing === 'down' ? 1 : 0;
-  const px = tileX ?? c.x + fx * 0.9;
-  const py = tileY ?? c.y + fy * 0.9;
-  // animals and characters first
-  for (const a of Object.values(game.state.animals)) {
-    if (a.state === 'dead') continue;
-    if (Math.hypot(a.x - px, a.y - py) < 1.1 && Math.hypot(a.x - c.x, a.y - c.y) < 2.8) return { kind: 'animal', animal: a };
-  }
-  for (const o of game.livingCharacters()) {
-    if (o === c) continue;
-    if (Math.hypot(o.x - px, o.y - py) < 0.9 && Math.hypot(o.x - c.x, o.y - c.y) < REACH + 0.5) return { kind: 'character', char: o };
-  }
-  const tryTile = (x: number, y: number): Target | undefined => {
-    const o = game.index.objAt(x, y);
+  // the body's centre sits a little above the feet; facing up reaches from there
+  const ox = c.x;
+  const oy = c.y - 0.2;
+  for (let d = 0.35; d <= REACH + 0.01; d += 0.2) {
+    const px = ox + fx * d;
+    const py = oy + fy * d;
+    for (const a of Object.values(game.state.animals)) {
+      if (a.state === 'dead') continue;
+      if (Math.hypot(a.x - px, a.y - 0.3 - py) < 0.6) return { kind: 'animal', animal: a };
+    }
+    for (const o of game.livingCharacters()) {
+      if (o === c) continue;
+      if (Math.abs(o.x - px) < 0.45 && py < o.y + 0.25 && py > o.y - 1.3) return { kind: 'character', char: o };
+    }
+    const o = game.index.objAt(px, py);
     if (o && o.type !== 'flowers') return { kind: 'object', obj: o };
-    return undefined;
-  };
-  let t = tryTile(px, py) ?? tryTile(c.x, c.y);
-  if (!t && tileX === undefined) {
-    // any adjacent object, nearest first
-    let best: WorldObject | undefined;
-    let bd = 2;
-    game.index.objectsNear(c.x, c.y, 1, (o) => {
-      if (o.type === 'flowers') return;
-      const d = def2(o, c);
-      if (d < bd) {
-        bd = d;
-        best = o;
-      }
-    });
-    if (best) t = { kind: 'object', obj: best };
+    if (isWater(game.index.terrainAt(px, py))) return { kind: 'water', x: Math.floor(px), y: Math.floor(py) };
+    // a wall or anything solid ends the line of reach
+    if (game.index.isSolid(Math.floor(px), Math.floor(py))) break;
   }
-  if (t && t.kind === 'object') {
-    const d = def2(t.obj, c);
-    if (d > REACH + 0.6) t = undefined;
-  }
-  if (t) return t;
-  if (isWater(game.index.terrainAt(px, py))) return { kind: 'water', x: Math.floor(px), y: Math.floor(py) };
+  // standing on something low (a pile, a bed, a crop): that counts as in front too
+  const under = game.index.objAt(c.x, c.y);
+  if (under && under.type !== 'flowers' && !objectDef(under.type).solid) return { kind: 'object', obj: under };
   if (isWater(game.index.terrainAt(c.x, c.y))) return { kind: 'water', x: Math.floor(c.x), y: Math.floor(c.y) };
+  return undefined;
+}
+
+/** The object or water at a given spot, if the character can reach it. */
+function targetAt(game: Game, c: Character, x: number, y: number): Target | undefined {
+  const o = game.index.objAt(x, y);
+  if (o && o.type !== 'flowers' && def2(o, c) <= REACH + 0.6) return { kind: 'object', obj: o };
+  if (isWater(game.index.terrainAt(x, y)) && Math.hypot(Math.floor(x) + 0.5 - c.x, Math.floor(y) + 0.5 - c.y) <= REACH + 0.6) {
+    return { kind: 'water', x: Math.floor(x), y: Math.floor(y) };
+  }
   return undefined;
 }
 

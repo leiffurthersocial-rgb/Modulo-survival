@@ -37,14 +37,14 @@ const SECTIONS: Section[] = [
         <table className="help-keys">
           <tbody>
             <tr><td><K>W</K><K>A</K><K>S</K><K>D</K> or arrows</td><td>Walk. Hold <K>Shift</K> to sprint (uses stamina).</td></tr>
-            <tr><td><K>E</K> or <K>Space</K></td><td>Interact with whatever you face: trees, water, people, containers, fires. With several choices a menu opens; pick with the number keys or a click.</td></tr>
+            <tr><td><K>E</K> or <K>Space</K></td><td>Interact with the thing directly in front of you, if it is within reach (about a step and a half). Turn to face something to use it. With several choices a menu opens; pick with the number keys or a click.</td></tr>
             <tr><td>Mouse click</td><td>Interact with the thing you click on, if it is close.</td></tr>
             <tr><td><K>I</K> / <K>Tab</K></td><td>Bag: your inventory, clothing and anything you have open.</td></tr>
             <tr><td><K>K</K></td><td>Craft tools, food and supplies.</td></tr>
             <tr><td><K>B</K></td><td>Build: fires, shelters, latrine, storage.</td></tr>
             <tr><td><K>M</K></td><td>Map (pauses the game).</td></tr>
             <tr><td><K>G</K></td><td>Group: everyone's state, orders and expeditions.</td></tr>
-            <tr><td><K>P</K></td><td>Camp overview: people, structures, stores.</td></tr>
+            <tr><td><K>O</K></td><td>Camp overview: people, structures, stores.</td></tr>
             <tr><td><K>C</K></td><td>Your character: condition, skills, relationships.</td></tr>
             <tr><td><K>J</K></td><td>Journal of what has happened.</td></tr>
             <tr><td><K>Z</K></td><td>Sleep, or wake up.</td></tr>
@@ -52,11 +52,11 @@ const SECTIONS: Section[] = [
             <tr><td><K>H</K></td><td>Set the Home Pin where you stand: the group makes camp there.</td></tr>
             <tr><td><K>L</K></td><td>Flashlight or torch on/off.</td></tr>
             <tr><td><K>F</K></td><td>Strike at an animal next to you.</td></tr>
-            <tr><td><K>Esc</K></td><td>Close a window, or pause (save, load, settings).</td></tr>
-            <tr><td><K>F1</K> or <K>?</K></td><td>This guide.</td></tr>
+            <tr><td><K>P</K> (or <K>Esc</K>)</td><td>Close a window, cancel building, or pause (save, load, settings).</td></tr>
+            <tr><td><K>?</K></td><td>This guide.</td></tr>
           </tbody>
         </table>
-        <p className="muted">On a tablet, turn on touch controls in Settings.</p>
+        <p className="muted">Every key works on an iPad keyboard: no Esc or function keys needed. Letter keys follow what is printed on your keyboard, so they are right on Swiss and German layouts too. Without a keyboard, turn on touch controls in Settings.</p>
       </>
     ),
   },
@@ -68,7 +68,7 @@ const SECTIONS: Section[] = [
         <p><b>Top left:</b> time, date, season, weather and temperature, and how many days you have been in the forest.</p>
         <p><b>Bottom left:</b> your needs. Full bars are good, except <b>Toilet</b>, which is bad when full. Colours go from green to yellow to red.</p>
         <p><b>Above the bars:</b> status effects such as Hungry, Soaked or Exhausted. Hover or tap one to see what it does to you.</p>
-        <p><b>Bottom centre:</b> the prompt tells you what <K>E</K> will do with what you are facing. Below it is the toolbar with every window.</p>
+        <p><b>Bottom centre:</b> the prompt tells you what <K>E</K> will do with what you are facing, and a frame marks that thing in the world. Below it is the toolbar with every window.</p>
         <p><b>Top right:</b> the compass points back to camp once you have set a Home Pin. Under it is the First steps list.</p>
         <p><b>Bottom right:</b> messages about what just happened. Notes at the top of the screen explain a situation the first time it happens; click one to dismiss it.</p>
       </>
@@ -124,7 +124,7 @@ const SECTIONS: Section[] = [
           <b>Pick a spot</b> that is dry, near water and not too far from wood, and press <K>H</K>. The whole group heads there and starts working on the camp.
         </p>
         <p>
-          <b>Build</b> (<K>B</K>): choose a structure, place it with <K>E</K> or a click (<K>Esc</K> or right-click cancels), then work on the site with{' '}
+          <b>Build</b> (<K>B</K>): choose a structure, place it with <K>E</K> or a click (<K>P</K> or right-click cancels), then work on the site with{' '}
           <K>E</K> until it is finished. The materials are taken from your bag or from camp storage nearby.
         </p>
         <ul>
@@ -199,7 +199,7 @@ const SECTIONS: Section[] = [
           <b>Normal</b> mode is forgiving with supplies and injuries. <b>Hardcore</b> has harsher needs, worse injuries and less loot.
         </p>
         <p>
-          The game autosaves regularly and when you sleep. From the pause menu (<K>Esc</K>) you can save to three slots, load, and export your save to a file.
+          The game autosaves regularly and when you sleep. From the pause menu (<K>P</K>) you can save to three slots, load, and export your save to a file.
           Saves stay in this browser, so export them if you want a backup.
         </p>
       </>

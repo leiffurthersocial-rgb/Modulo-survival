@@ -26,11 +26,12 @@ export function WelcomeCard({ session }: { session: GameSession }) {
         </p>
         <div className="welcome-keys">
           <span><span className="key">W</span><span className="key">A</span><span className="key">S</span><span className="key">D</span> walk</span>
-          <span><span className="key">E</span> interact with what you face</span>
+          <span><span className="key">E</span> use what is in front of you</span>
           <span><span className="key">I</span> your bag</span>
           <span><span className="key">B</span> build</span>
           <span><span className="key">Z</span> sleep</span>
-          <span><span className="key">F1</span> how to play</span>
+          <span><span className="key">P</span> pause</span>
+          <span><span className="key">?</span> how to play</span>
         </div>
         <p className="muted" style={{ margin: 0 }}>
           The <b>First steps</b> list on the right tells you what to do next and ticks itself off. The supply bag is right beside you: start there.

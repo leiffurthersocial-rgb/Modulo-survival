@@ -36,14 +36,28 @@ export const BINDINGS: Record<string, ActionKey> = {
   KeyZ: 'sleep',
   KeyT: 'toilet',
   KeyH: 'home',
+  // P pauses and closes windows: the iPad keyboard has no Esc or F-keys
+  KeyP: 'menu',
   Escape: 'menu',
   Backquote: 'debug',
   F3: 'debug',
   KeyL: 'light',
-  KeyP: 'camp',
+  KeyO: 'camp',
   F1: 'help',
   Slash: 'help',
 };
+
+/**
+ * Letter keys match the character printed on the key (e.key), so they stay
+ * right on QWERTZ and other layouts; movement uses physical positions.
+ */
+const CHAR_BINDINGS: Record<string, ActionKey> = { ' ': 'interact', '?': 'help', '/': 'help' };
+for (const [code, a] of Object.entries(BINDINGS)) if (/^Key[A-Z]$/.test(code)) CHAR_BINDINGS[code.slice(3).toLowerCase()] = a;
+
+function bindingFor(e: KeyboardEvent): ActionKey | undefined {
+  if (e.key.length === 1 && /[a-z ?/]/i.test(e.key)) return CHAR_BINDINGS[e.key.toLowerCase()];
+  return /^Key[A-Z]$/.test(e.code) ? undefined : BINDINGS[e.code];
+}
 
 export const KEY_LABELS: Record<ActionKey, string> = {
   interact: 'E',
@@ -58,11 +72,11 @@ export const KEY_LABELS: Record<ActionKey, string> = {
   sleep: 'Z',
   toilet: 'T',
   home: 'H',
-  menu: 'Esc',
+  menu: 'P',
   debug: 'F3',
   light: 'L',
-  camp: 'P',
-  help: 'F1',
+  camp: 'O',
+  help: '?',
 };
 
 export class Input {
@@ -81,9 +95,11 @@ export class Input {
     const target = e.target as HTMLElement | null;
     if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) return;
     this.down.add(e.code);
-    const a = BINDINGS[e.code];
+    // leave system shortcuts (Cmd+Tab, Cmd+R...) to the browser and the iPad
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const a = bindingFor(e);
     if (a && !e.repeat) {
-      if (e.code === 'Tab' || e.code === 'Space' || e.code === 'F1') e.preventDefault();
+      if (e.code === 'Tab' || e.code === 'Space' || e.code === 'F1' || a === 'help') e.preventDefault();
       for (const l of this.listeners) l(a, e);
     }
     if (e.code.startsWith('Arrow')) e.preventDefault();

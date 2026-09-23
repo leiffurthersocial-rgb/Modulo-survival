@@ -370,7 +370,7 @@ export class GameSession {
   beginBuild(type: string): void {
     this.ui.buildType = type;
     this.ui.panel = null;
-    this.toast(`Placing ${objectDef(type).name}. ${this.settings.touchControls ? 'Face a spot and press Use.' : 'Click or press E to place, right-click or Esc to cancel.'}`, 'info');
+    this.toast(`Placing ${objectDef(type).name}. ${this.settings.touchControls ? 'Face a spot and press Use.' : 'Click or press E to place, right-click or P to cancel.'}`, 'info');
     this.bump();
   }
 

@@ -230,7 +230,7 @@ export function MenuPanel(props: { session: GameSession; settings: Settings; onS
             Save and quit to title
           </button>
           <p className="faint" style={{ fontSize: '0.85em' }}>
-            Keys: WASD move, Shift sprint, E interact, F strike, I inventory, K craft, B build, M map, G group, P camp, C character, J journal, Z sleep, T toilet, H set Home Pin, L light, F1 how to play.
+            Keys: WASD move, Shift sprint, E use what is in front of you, F strike, I inventory, K craft, B build, M map, G group, O camp, C character, J journal, Z sleep, T toilet, H set Home Pin, L light, P pause or close, ? how to play.
           </p>
         </div>
       )}
