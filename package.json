@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "soak": "TOOLS=1 vitest run",
+    "soak": "TOOLS=1 vitest run --reporter=verbose --silent=false",
     "test:watch": "vitest"
   },
   "engines": {

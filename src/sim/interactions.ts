@@ -23,6 +23,7 @@ import {
   waterContamAt,
 } from './actions';
 import { dismantle } from './building';
+import { clothingDirt } from './body';
 import { attackAnimal } from './wildlife';
 import { docById, readDoc } from './loot';
 import { makeStack } from '@/gen/characters';
@@ -129,6 +130,8 @@ export function getInteractions(game: Game, c: Character, t: Target): Interactio
     const hasContainer = c.inventory.some((s) => s && itemDef(s.id).liquidCapacity);
     add('fill', 'Fill containers', () => startAction(game, c, 'fill', 3, { tx: t.x, ty: t.y }), hasContainer, 'No containers');
     add('wash', 'Wash', () => startAction(game, c, 'wash', 10 / ws()));
+    const grime = clothingDirt(c);
+    add('washClothes', 'Wash clothes', () => startAction(game, c, 'washClothes', 20 / ws()), grime > 0.1, 'Clothes are clean');
     add('fish', 'Fish', () => startAction(game, c, 'fish', 60, { tx: t.x, ty: t.y }), !!bestTool(c, 'fish'), 'Needs a fishing rod');
     void contam;
     return out;
@@ -241,6 +244,7 @@ export function getInteractions(game: Game, c: Character, t: Target): Interactio
       break;
     case 'wash_station':
       add('wash', 'Wash (uses 1 L of water)', () => startAction(game, c, 'washStation', 8), liquidTotal(c.inventory, 1) >= 300, 'Needs water in a container');
+      add('washClothes', 'Wash clothes (uses 2 L of water)', () => startAction(game, c, 'washClothes', 18, { data: { basin: true } }), liquidTotal(c.inventory, 1) >= 600 && clothingDirt(c) > 0.1, clothingDirt(c) > 0.1 ? 'Needs water in a container' : 'Clothes are clean');
       break;
     case 'rain_collector': {
       const l = (o.water?.ml ?? 0) / 1000;

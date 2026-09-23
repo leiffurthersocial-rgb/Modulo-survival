@@ -8,7 +8,7 @@ import { causeById } from '@/content/lore';
 import { clamp } from '@/core/math';
 import { makeStack } from '@/gen/characters';
 import type { Game } from './game';
-import type { ActionState, Character, ItemStack, SkillId, WorldObject } from './types';
+import type { ActionState, Character, EquipSlot, ItemStack, SkillId, WorldObject } from './types';
 import {
   addItem,
   bestTool,
@@ -169,6 +169,26 @@ export const ACTIONS: Record<string, ActionDef> = {
       c.needs.morale = Math.min(100, c.needs.morale + 3);
       game.charMessage(c, soap ? 'You scrub yourself clean with soap. Cold, but good.' : 'You rinse off in the cold water.', 'good');
       gainSkill(game, c, 'survival', 0.01);
+    },
+  },
+  washClothes: {
+    anim: 'work', exertion: 1.4, label: 'Washing clothes', fastForward: true,
+    complete: (game, c, a) => {
+      const soap = c.inventory.find((s) => s?.id === 'soap' && (s.charge ?? 0) > 0);
+      if (a.data?.basin && useWaterFromInventory(c, 2000) < 600) {
+        game.charMessage(c, 'You need about two litres of water in a container to wash clothes here.', 'warn');
+        return;
+      }
+      for (const k in c.equipment) {
+        const s = c.equipment[k as EquipSlot];
+        if (s && itemDef(s.id).clothing) s.dirt = soap ? 0 : Math.min(s.dirt ?? 0, 0.15);
+      }
+      if (soap) soap.charge = (soap.charge ?? 1) - 1;
+      // wrung out, but still damp: best done by a fire or on a warm day
+      c.needs.wetness = Math.max(c.needs.wetness, 55);
+      c.needs.hygiene = Math.min(100, c.needs.hygiene + 10);
+      c.needs.morale = Math.min(100, c.needs.morale + 2);
+      game.charMessage(c, 'You scrub your clothes and wring them out. They are clean, and cold and damp to put back on.', 'good');
     },
   },
   washStation: {

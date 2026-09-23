@@ -1,5 +1,5 @@
 import { itemDef } from '@/content/items';
-import { objectDef } from '@/content/objects';
+import { isTree, objectDef } from '@/content/objects';
 import { isWater } from '@/content/terrain';
 import { clamp } from '@/core/math';
 import type { Character, Expedition, ItemStack, OrderId, WorldObject } from './types';
@@ -32,6 +32,7 @@ import { daylight, formatClock, hourOf, isNight, season } from './clock';
 import { ensureLoot } from './loot';
 import { FIRE_TYPES, SHELTER_TYPES } from './environment';
 import { attackAnimal } from './wildlife';
+import { clothingDirt } from './body';
 
 export const STORAGE_TYPES = ['storage_cache', 'wooden_crate', 'supply_bag'];
 const CAMP_RADIUS = 22;
@@ -345,6 +346,8 @@ export function npcThink(game: Game, c: Character): void {
     if (dryFirst) add('warm', 120);
   }
   if (n.hygiene < 35 && daylight(t) > 0.5 && game.state.weather.temp > 6) add('wash', 18 + (35 - n.hygiene) * 1.2);
+  // laundry waits for a mild, dry afternoon so the clothes can dry on the body
+  else if (laundryWeather(game) && clothingDirt(c) > 0.6 && n.bodyTemp > 36.8) add('wash', 10 + clothingDirt(c) * 8);
   // with no fire at camp, someone practical will make one when it gets dark or cold
   if (!campFire(game) && (daylight(t) < 0.6 || game.state.weather.temp < 8 || cold)) {
     add('makeFire', 30 + c.skills.survival * 4 + (c.traits.includes('practical') ? 10 : 0) + (cold ? 30 : 0));
@@ -518,8 +521,7 @@ function runTask(game: Game, c: Character, task: TaskId): void {
       // a dead fire and nothing to burn: collect deadfall first, then go to the fire
       const carrying = countItem(c.inventory, 'branch') + countItem(c.inventory, 'firewood') + countItem(c.inventory, 'log');
       if (!fire.lit && (fire.s ?? 0) < 20 && carrying === 0 && !findInCamp(game, (s) => s.id === 'branch' || s.id === 'firewood')) {
-        const df = game.index.nearestObjectRing(fire.x, fire.y, 20, (o) => o.type === 'deadfall');
-        if (df) return moveOrAct(game, c, df.x + 0.5, df.y + 0.5, 1.3, () => startAction(game, c, 'gather', gatherMinutes('deadfall') / workSpeed(c), { targetId: df.id }));
+        if (seekFuel(game, c, fire.x, fire.y, 40)) return;
         return runTask(game, c, 'shelter');
       }
       return moveOrAct(game, c, fire.x + 0.5, fire.y + 1.6, 2.2, () => {
@@ -552,7 +554,8 @@ function runTask(game: Game, c: Character, task: TaskId): void {
     case 'wash': {
       const water = nearestWaterTile(game, c, 45);
       if (!water) return think(game, c, 10);
-      return moveOrAct(game, c, water[0] + 0.5, water[1] + 0.5, 1.6, () => startAction(game, c, 'wash', 10));
+      const laundry = laundryWeather(game) && clothingDirt(c) > 0.6 && c.needs.hygiene >= 35;
+      return moveOrAct(game, c, water[0] + 0.5, water[1] + 0.5, 1.6, () => startAction(game, c, laundry ? 'washClothes' : 'wash', laundry ? 20 : 10));
     }
     case 'gatherWood':
       return doGatherWood(game, c);
@@ -806,6 +809,13 @@ function forageTarget(game: Game, c: Character): WorldObject | undefined {
   return game.index.nearestObjectRing(c.x, c.y, 40, (o) => types.includes(o.type) && !!o.s && (o.type !== 'hazel' || season(game.state.time).nuts) && Math.hypot(o.x - h.x, o.y - h.y) < 80);
 }
 
+/** A dry, mild midday: wet clothes will dry on the body before the evening chill. */
+function laundryWeather(game: Game): boolean {
+  const w = game.state.weather;
+  const h = hourOf(game.state.time);
+  return h >= 10 && h < 15 && w.temp > 12 && w.precipitation < 0.05;
+}
+
 /** Make sure the NPC carries something to light a fire with. */
 function fetchIgniter(game: Game, c: Character, fire?: WorldObject): boolean {
   if (bestTool(c, 'ignite')) return true;
@@ -1026,6 +1036,33 @@ function doAutoBuild(game: Game, c: Character, type: string, task: string, line:
   });
 }
 
+/**
+ * Head for the nearest fuel around (x, y): branch piles, deadfall, or dead
+ * branches snapped off standing trees. Returns false when there is none.
+ */
+function seekFuel(game: Game, c: Character, x: number, y: number, radius: number): boolean {
+  const pile = game.index.nearestOfType('pile', x, y, radius, (o) => !!o.inv?.some((s) => s?.id === 'branch' || s?.id === 'firewood'));
+  if (pile) {
+    moveOrAct(game, c, pile.x + 0.5, pile.y + 0.5, 1.4, () => {
+      const id = pile.inv!.some((s) => s?.id === 'firewood') ? 'firewood' : 'branch';
+      takeFrom(c, pile, id, 10);
+      if (pile.inv!.every((s) => !s)) game.index.removeObject(pile.id);
+    });
+    return true;
+  }
+  const df = game.index.nearestObjectRing(x, y, radius, (o) => o.type === 'deadfall' && (o.s ?? 1) > 0);
+  if (df) {
+    moveOrAct(game, c, df.x + 0.5, df.y + 0.5, 1.3, () => startAction(game, c, 'gather', gatherMinutes('deadfall') / workSpeed(c), { targetId: df.id }));
+    return true;
+  }
+  const tree = game.index.nearestObjectRing(x, y, radius, (o) => isTree(o.type) && (o.s2 ?? 0) < 2);
+  if (tree) {
+    moveOrAct(game, c, tree.x + 0.5, tree.y + 1.4, 1.3, () => startAction(game, c, 'gather', 6 / workSpeed(c), { targetId: tree.id, data: { branches: true } }));
+    return true;
+  }
+  return false;
+}
+
 function doGatherWood(game: Game, c: Character): void {
   if (loadRatio(c) > 0.85 || countItem(c.inventory, 'branch') >= 16 || countItem(c.inventory, 'log') >= 2) return doDeposit(game, c);
   const h = game.home;
@@ -1038,10 +1075,11 @@ function doGatherWood(game: Game, c: Character): void {
       if (pile.inv!.every((s) => !s)) game.index.removeObject(pile.id);
     });
   }
-  const df = game.index.nearestObjectRing(c.x, c.y, 40, (o) => o.type === 'deadfall');
+  const df = game.index.nearestObjectRing(c.x, c.y, 40, (o) => o.type === 'deadfall' && (o.s ?? 1) > 0);
   if (df && Math.hypot(df.x - h.x, df.y - h.y) < 60) {
     return moveOrAct(game, c, df.x + 0.5, df.y + 0.5, 1.3, () => startAction(game, c, 'gather', gatherMinutes('deadfall') / workSpeed(c), { targetId: df.id }));
   }
+  if (!bestTool(c, 'chop') && seekFuel(game, c, h.x, h.y, 30)) return;
   if (bestTool(c, 'chop') || findInCamp(game, (s) => itemDef(s.id).tool?.tags.includes('chop') === true)) {
     if (!bestTool(c, 'chop')) {
       const ax = findInCamp(game, (s) => itemDef(s.id).tool?.tags.includes('chop') === true)!;

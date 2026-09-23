@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { newGame } from './helpers';
-import { updateBody } from '@/sim/body';
+import { clothingDirt, clothingInsulation, updateBody } from '@/sim/body';
+import { ACTIONS } from '@/sim/actions';
 import { computeEnv } from '@/sim/environment';
 import type { Game } from '@/sim/game';
 import type { Character } from '@/sim/types';
@@ -87,5 +88,20 @@ describe('survival needs', () => {
     const hp2 = p.health.hp;
     tick(g, p, 30, { airTemp: 18 });
     expect(hp2 - p.health.hp).toBeLessThan(hp - hp2);
+  });
+
+  it('clothes get dirty, insulate worse, and washing cleans them but leaves them wet', () => {
+    const g = newGame();
+    const p = isolate(g);
+    const warm0 = clothingInsulation(p).warmth;
+    p.exertion = 2;
+    tick(g, p, 60 * 24 * 3, { airTemp: 16, rain: 0, wind: 0, fireHeat: 0 });
+    p.exertion = 1;
+    expect(clothingDirt(p)).toBeGreaterThan(0.6);
+    p.needs.wetness = 0;
+    expect(clothingInsulation(p).warmth).toBeLessThan(warm0);
+    ACTIONS.washClothes.complete!(g, p, { type: 'washClothes', t: 0, dur: 20 } as never);
+    expect(clothingDirt(p)).toBeLessThan(0.2);
+    expect(p.needs.wetness).toBeGreaterThanOrEqual(55);
   });
 });

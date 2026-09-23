@@ -36,15 +36,31 @@ export function clothingInsulation(c: Character): { warmth: number; waterproof: 
     // wet cotton loses most of its insulation, wool keeps more of it
     const wool = s.id === 'wool_sweater';
     const wetLoss = (c.needs.wetness / 100) * (wool ? 0.25 : 0.65) * (1 - cl.waterproof);
-    warmth += cl.warmth * (1 - wetLoss) * (s.q !== undefined ? 0.6 + 0.4 * s.q : 1);
+    // grime mats fibres and holds sweat, so filthy clothes insulate a little worse
+    warmth += cl.warmth * (1 - wetLoss) * (s.q !== undefined ? 0.6 + 0.4 * s.q : 1) * (1 - (s.dirt ?? 0) * 0.15);
     waterproof += cl.waterproof * (SLOT_RAIN_COVER[k as EquipSlot] ?? 0);
   }
   return { warmth, waterproof: clamp(waterproof, 0, 0.95) };
 }
 
+/** Average grime of worn clothing (0..1). */
+export function clothingDirt(c: Character): number {
+  let sum = 0;
+  let n = 0;
+  for (const k in c.equipment) {
+    const s = c.equipment[k as EquipSlot];
+    if (!s || !itemDef(s.id).clothing) continue;
+    sum += s.dirt ?? 0;
+    n++;
+  }
+  return n ? sum / n : 0;
+}
+
 export function hasSleepingBag(c: Character): boolean {
   return countItem(c.inventory, 'sleeping_bag') > 0;
 }
+
+const COMFORT = 24;
 
 /** The temperature the body "feels" given clothing, activity and surroundings. */
 export function perceivedTemp(c: Character, env: LocalEnv): number {
@@ -52,8 +68,12 @@ export function perceivedTemp(c: Character, env: LocalEnv): number {
   const windChill = env.wind * 0.8;
   const metabolic = (c.exertion - 1) * 3;
   const wetChill = (c.needs.wetness / 100) * 4;
-  let p = env.airTemp + env.fireHeat - windChill + warmth * 2.2 + metabolic - wetChill + (env.huddle ?? 0);
-  if (c.sleeping && hasSleepingBag(c)) p += 9;
+  const base = env.airTemp + env.fireHeat - windChill + metabolic - wetChill + (env.huddle ?? 0);
+  // when warm, people open jackets and shed layers (a quarter of the insulation stays on)
+  const clothes = warmth * 2.2;
+  let p = base + (base + clothes > COMFORT ? clamp(COMFORT - base, clothes * 0.25, clothes) : clothes);
+  // and unzip the sleeping bag instead of cooking in it
+  if (c.sleeping && hasSleepingBag(c)) p += clamp(COMFORT + 2 - p, 0, 9);
   if (env.inWater) p -= 6;
   if (env.deepWater) p -= 14;
   return p;
@@ -110,7 +130,11 @@ export function updateBody(game: Game, c: Character, dt: number, env: LocalEnv):
     n.bodyTemp -= deficit * coldK * dt;
     if (deficit <= 0 && n.bodyTemp < 37) n.bodyTemp += 0.015 * dt;
   } else if (p > 28) {
-    n.bodyTemp += (p - 28) * 0.0006 * dt;
+    // sweating holds the core steady until it is really hot, as long as there is water to sweat
+    const sweat = n.hydration > 15 ? 6 : 1;
+    const excess = p - 28 - sweat;
+    if (excess > 0) n.bodyTemp += excess * 0.0006 * dt;
+    else n.bodyTemp += (37 - n.bodyTemp) * Math.min(1, 0.02 * dt);
     n.hydration -= (p - 28) * 0.012 * dt;
     n.hygiene -= (p - 28) * 0.004 * dt;
     if (n.bodyTemp > 37.5) n.wetness = Math.min(100, n.wetness + 0.05 * dt);
@@ -136,7 +160,13 @@ export function updateBody(game: Game, c: Character, dt: number, env: LocalEnv):
   }
   n.hydration -= (0.05 + (ex - 1) * 0.03 + Math.max(0, env.airTemp - 20) * 0.003) * conMul * hcMul * dt;
   n.bladder += (c.sleeping ? 0.07 : 0.18) * dt;
-  n.hygiene -= (0.011 + (ex - 1) * 0.01) * dt;
+  n.hygiene -= (0.011 + (ex - 1) * 0.01 + clothingDirt(c) * 0.006) * dt;
+  // clothes pick up dirt from work, sweat and sleeping on the ground
+  const grime = (0.00012 + Math.max(0, ex - 1) * 0.00025) * dt;
+  for (const k in c.equipment) {
+    const s = c.equipment[k as EquipSlot];
+    if (s && itemDef(s.id).clothing) s.dirt = Math.min(1, (s.dirt ?? 0) + grime);
+  }
 
   // --- Sleep / fatigue -----------------------------------------------------
   if (c.sleeping) {

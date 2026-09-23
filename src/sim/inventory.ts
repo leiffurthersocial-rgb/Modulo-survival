@@ -231,6 +231,7 @@ export function describeStack(s: ItemStack): string {
   if (s.liquid) parts.push(s.liquid.ml > 0 ? `${Math.round(s.liquid.ml)} ml ${contamLabel(s.liquid.contam)} water` : 'empty');
   if (d.food && d.food.spoilPerDay > 0 && s.q !== undefined) parts.push(freshnessLabel(s.q));
   if (d.tool && d.tool.wear > 0 && s.q !== undefined) parts.push(`${Math.round(s.q * 100)}% condition`);
+  if (d.clothing && (s.dirt ?? 0) > 0.15) parts.push(s.dirt! > 0.7 ? 'filthy' : s.dirt! > 0.4 ? 'dirty' : 'a bit grubby');
   if (s.charge !== undefined && d.charges) {
     if (d.id === 'matches') parts.push(`${s.charge} left`);
     else if (d.id === 'flashlight' || d.id === 'torch') parts.push(`${Math.round(s.charge)}%`);

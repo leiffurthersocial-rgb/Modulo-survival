@@ -63,6 +63,8 @@ export interface ItemStack {
   contents?: (ItemStack | null)[];
   /** Document id for readable notes. */
   doc?: string;
+  /** Grime on clothing (0 clean .. 1 filthy). */
+  dirt?: number;
 }
 
 export interface Appearance {

@@ -14,6 +14,7 @@ It runs entirely in the browser (desktop and iPad) and deploys as a static site.
 npm install
 npm run dev        # http://localhost:5173
 npm test           # unit tests (vitest)
+npm run soak       # 10-day headless balance run (SEED=1234 to pick a world)
 npm run build      # type-check + production build into dist/
 npm run preview    # serve the production build
 ```
@@ -71,10 +72,14 @@ Everything listed here works in the game and affects the simulation.
 - **Body simulation**: calories (stomach plus longer-term body reserves),
   thirst, sleep pressure and sleep quality, stamina, toilet, hygiene, core body
   temperature (air, wind, rain, wetness, clothing, shelter, fire, activity,
-  huddling), stress, morale, injuries (bleeding, infection, bandaging), and
+  huddling; people shed layers and sweat when warm), stress, morale, injuries (bleeding, infection, bandaging), and
   illnesses (contaminated water, spoiled or raw food, cold exposure, infection
   fever). Status effects derived from these change speed, work rate and
   accident risk.
+- **Clothing**: worn clothes get dirty with work and time. Filthy clothes
+  insulate a little worse and make you dirtier faster. Wash them at the water
+  or at a wash station; they come back clean and damp, so pick a mild midday
+  or stand by a fire.
 - **Sleep**: you wake around sunrise or when rested, or earlier because of
   cold, rain, thirst or pain. Time runs faster while you sleep.
 - **Water**: streams, ponds and the lake carry different contamination; waste
