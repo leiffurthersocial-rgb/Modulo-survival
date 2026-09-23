@@ -174,7 +174,7 @@ export function updateNpc(game: Game, c: Character, dt: number, near: boolean): 
   }
   c.sprinting = c.ai.task === 'flee';
   if (near) {
-    const moved = game.moveCharacter(c, wx - c.x, wy - c.y, dt);
+    const moved = game.moveCharacter(c, wx - c.x, wy - c.y, dt, Math.hypot(wx - c.x, wy - c.y));
     if (!moved) {
       c.ai.stuck += dt;
       if (c.ai.stuck > 1.5) {
@@ -355,13 +355,13 @@ export function npcThink(game: Game, c: Character): void {
       if (hunter && foodDays < 2) add('hunt', 6 + c.skills.hunting * 3 + clamp((1.5 - foodDays) * 8, 0, 12));
       const water = game.campWaterLitres();
       const living = game.livingCharacters().length;
-      add('gatherWater', 8 + clamp((living * 1.2 - water) * 2, 0, 30) + hw);
+      add('gatherWater', 8 + clamp((living * 1.2 - water) * 1.2, 0, 18) + hw);
       if (constructionSite(game)) add('build', 20 + c.skills.construction * 2 + hw);
       // basic camp infrastructure the group builds on its own once a camp is chosen
       if (game.state.homePin) {
         const cap = shelterCapacity(game);
         const living = game.livingCharacters().length;
-        if (cap < living * 0.5) add('buildShelter', 16 + c.skills.construction * 2 + hw + (living * 0.5 - cap) * 1.5);
+        if (cap < living * 0.5) add('buildShelter', 16 + c.skills.construction * 2 + hw + (living * 0.5 - cap) * 1.5 + (cap === 0 ? 20 : 0));
         if (!game.index.nearestOfType('latrine', h.x, h.y, CAMP_RADIUS + 6)) add('buildLatrine', 14 + (c.traits.includes('practical') ? 10 : 0) + hw);
       }
       if (hasRawFood(game, c) && campFire(game)) add('cook', 18 + c.skills.cooking * 2 + clamp((1 - foodDays) * 15, 0, 15));
@@ -670,7 +670,8 @@ function doDrink(game: Game, c: Character): void {
   const cautious = c.traits.includes('cautious');
   if (own && (own.liquid!.contam < 0.1 || c.needs.hydration < (cautious ? 18 : 32))) {
     const slot = c.inventory.indexOf(own);
-    startAction(game, c, 'drinkItem', 1, { data: { slot, ml: 500 } });
+    // drink until satisfied, not just a sip
+    startAction(game, c, 'drinkItem', 2, { data: { slot, ml: Math.max(300, (100 - c.needs.hydration) * 25) } });
     return think(game, c, 1);
   }
   // dirty water: purify with a tablet if we have one
@@ -702,12 +703,15 @@ function doDrink(game: Game, c: Character): void {
   if (own && fire && (bestTool(c, 'boil') || findInCamp(game, (s) => itemDef(s.id).tool?.tags.includes('boil') === true))) {
     return moveOrAct(game, c, fire.x + 0.5, fire.y + 1.5, 1.8, () => startAction(game, c, 'boilWater', 15, { targetId: fire.id }));
   }
-  // go to water: fill containers, drink directly when desperate
+  // carrying untreated water already: no point walking to the stream; wait
+  // until thirst outweighs the risk (cautious people hold out longer)
+  if (own) return markBlocked(game, c, 'drink', 40);
+  // go to water: fill containers, and drink there if thirsty enough to take the risk
   const wt = nearestWaterTile(game, c, 70);
-  if (!wt) return think(game, c, 10);
+  if (!wt) return markBlocked(game, c, 'drink', 30);
   moveOrAct(game, c, wt[0] + 0.5, wt[1] + 0.5, 1.6, () => {
-    if (c.inventory.some((s) => s && itemDef(s.id).liquidCapacity)) startAction(game, c, 'fill', 2, { tx: wt[0], ty: wt[1] });
-    if (c.needs.hydration < (cautious ? 12 : 30)) startAction(game, c, 'drinkWater', 2, { tx: wt[0], ty: wt[1] });
+    if (c.needs.hydration < (cautious ? 20 : 45)) startAction(game, c, 'drinkWater', 2, { tx: wt[0], ty: wt[1] });
+    else if (c.inventory.some((s) => s && itemDef(s.id).liquidCapacity)) startAction(game, c, 'fill', 2, { tx: wt[0], ty: wt[1] });
   });
 }
 

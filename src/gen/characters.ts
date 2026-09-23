@@ -116,7 +116,7 @@ function baseNeeds(rng: Rng) {
   };
 }
 
-function starterKit(rng: Rng, mode: GameMode, sex: string, build: string): { inv: ItemStack[]; eq: Character['equipment'] } {
+function starterKit(rng: Rng, mode: GameMode, fixedId: string | null, build: string): { inv: ItemStack[]; eq: Character['equipment'] } {
   const eq: Character['equipment'] = {
     torso: makeStack('tshirt'),
     legs: makeStack(rng.chance(0.65) ? 'jeans' : 'hiking_pants'),
@@ -124,8 +124,10 @@ function starterKit(rng: Rng, mode: GameMode, sex: string, build: string): { inv
     back: makeStack('school_backpack'),
   };
   const outer = rng.weighted([['hoodie', 4], ['rain_jacket', 2], ['none', 2]] as const);
-  if (outer !== 'none') eq.outer = makeStack(outer);
-  if (rng.chance(0.2)) eq.head = makeStack('beanie');
+  // the known boys keep their described look: no hats, and Leif in his black t-shirt
+  const hat = rng.chance(0.2);
+  if (outer !== 'none' && fixedId !== 'leif') eq.outer = makeStack(outer);
+  if (hat && !fixedId) eq.head = makeStack('beanie');
   const inv: ItemStack[] = [];
   inv.push(makeStack('water_bottle', 1, { liquid: { ml: rng.int(500, 1000), contam: 0 } }));
   inv.push(makeStack('ration', mode === 'hardcore' ? 1 : 2));
@@ -134,7 +136,6 @@ function starterKit(rng: Rng, mode: GameMode, sex: string, build: string): { inv
   if (rng.chance(0.25)) inv.push(makeStack('flashlight', 1, { charge: rng.int(40, 100) }));
   if (rng.chance(0.3)) inv.push(makeStack('chocolate'));
   if (rng.chance(0.2)) inv.push(makeStack('bandage', rng.int(1, 2)));
-  void sex;
   void build;
   return { inv, eq };
 }
@@ -155,7 +156,7 @@ export function buildCharacter(
 ): Character {
   const background = rng.pick(BACKGROUNDS);
   const traits = rollTraits(rng);
-  const kit = starterKit(rng, mode, sex, appearance.build);
+  const kit = starterKit(rng, mode, fixed ? id : null, appearance.build);
   const inventory: (ItemStack | null)[] = new Array(8 + 8).fill(null);
   kit.inv.forEach((s, i) => (inventory[i] = s));
   return {

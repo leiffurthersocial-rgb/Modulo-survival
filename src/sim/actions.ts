@@ -142,7 +142,7 @@ export const ACTIONS: Record<string, ActionDef> = {
     anim: 'eat', exertion: 1, label: 'Drinking',
     complete: (game, c, a) => {
       const contam = waterContamAt(game, a.tx!, a.ty!);
-      drinkLiquid(game, c, 600, contam);
+      drinkLiquid(game, c, Math.max(400, (100 - c.needs.hydration) * 25), contam);
     },
   },
   fill: {

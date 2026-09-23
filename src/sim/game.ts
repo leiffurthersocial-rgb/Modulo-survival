@@ -187,6 +187,16 @@ export class Game {
     this.perf.simMs = this.perf.simMs * 0.9 + (performance.now() - t0) * 0.1;
   }
 
+  /** Run the simulation forward by game minutes (debug, tests). */
+  advance(minutes: number): void {
+    let remaining = minutes;
+    while (remaining > 1e-6) {
+      const st = Math.min(remaining, 0.25);
+      this.step(st);
+      remaining -= st;
+    }
+  }
+
   private step(dt: number): void {
     const s = this.state;
     s.time += dt;
@@ -351,7 +361,7 @@ export class Game {
   }
 
   /** Move with axis-separated collision. Returns true if any movement happened. */
-  moveCharacter(c: Character, dx: number, dy: number, dt: number): boolean {
+  moveCharacter(c: Character, dx: number, dy: number, dt: number, maxDist = Infinity): boolean {
     const len = Math.hypot(dx, dy);
     if (len < 1e-4) {
       c.moving = false;
@@ -360,7 +370,8 @@ export class Game {
     dx /= len;
     dy /= len;
     const speed = this.moveSpeed(c);
-    const dist = speed * dt;
+    // never overshoot a waypoint
+    const dist = Math.min(speed * dt, maxDist);
     const r = 0.28;
     let moved = false;
     const nx = c.x + dx * dist;
