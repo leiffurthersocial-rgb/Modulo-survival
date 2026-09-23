@@ -47,6 +47,21 @@ export interface Interaction {
   children?: Interaction[];
 }
 
+/** A destructive option: never runs on a single key press, always asks first. */
+function confirmStep(id: string, label: string, question: string, run: () => void): Interaction {
+  return {
+    id,
+    label: `${label}...`,
+    enabled: true,
+    run: () => {},
+    children: [
+      // "No" first: pressing E in a menu picks the first option, so mashing E never confirms
+      { id: `${id}_no`, label: 'No, leave it', enabled: true, run: () => {} },
+      { id: `${id}_yes`, label: question, enabled: true, run },
+    ],
+  };
+}
+
 export const REACH = 1.7;
 /** Anything this close counts even beside or behind you. */
 const TOUCH = 0.8;
@@ -219,7 +234,7 @@ export function getInteractions(game: Game, c: Character, t: Target): Interactio
     const tool = d.build?.tool;
     const toolOk = !tool || !!bestTool(c, tool);
     add('build', 'Work on construction', () => startAction(game, c, 'build', 30, { targetId: o.id }), toolOk, `Needs a tool (${tool})`);
-    add('cancel', 'Cancel construction', () => dismantle(game, c, o));
+    out.push(confirmStep('cancel', 'Cancel construction', 'Yes, scrap it (all materials back)', () => dismantle(game, c, o)));
     return out;
   }
 
@@ -371,7 +386,7 @@ export function getInteractions(game: Game, c: Character, t: Target): Interactio
       break;
   }
 
-  if (d.build && d.kind === 'structure') add('dismantle', 'Dismantle', () => dismantle(game, c, o));
+  if (d.build && d.kind === 'structure') out.push(confirmStep('dismantle', 'Dismantle', 'Yes, take it apart (half the materials back)', () => dismantle(game, c, o)));
   return out;
 }
 

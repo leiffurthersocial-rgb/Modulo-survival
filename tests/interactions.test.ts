@@ -52,3 +52,21 @@ describe('interactions', () => {
     expect(findTarget(g, p)).toBeDefined;
   }, 60000);
 });
+
+describe('destructive interactions', () => {
+  it('never dismantle a finished structure on a single press', async () => {
+    const { newGame } = await import('./helpers');
+    const { getInteractions } = await import('@/sim/interactions');
+    const g = newGame();
+    const p = g.player;
+    const spot = g.index.findTileNear(p.x, p.y, 20, (x, y) => g.index.isFree(x, y) && !g.index.objAt(x, y))!;
+    const o = g.index.addObject({ type: 'woven_chest', x: spot[0], y: spot[1], inv: new Array(12).fill(null) });
+    const items = getInteractions(g, p, { kind: 'object', obj: o });
+    const dis = items.find((i) => i.id === 'dismantle')!;
+    expect(dis.children).toBeDefined();
+    dis.run();
+    expect(g.state.objects[o.id]).toBeDefined();
+    // the first choice is the safe one
+    expect(dis.children![0].id).toBe('dismantle_no');
+  });
+});

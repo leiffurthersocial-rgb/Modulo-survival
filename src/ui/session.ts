@@ -319,7 +319,8 @@ export class GameSession {
     const g = this.game;
     const items = getInteractions(g, g.player, t);
     const enabled = items.filter((i) => i.enabled);
-    if (enabled.length === 1 && items.length === 1) {
+    // a lone option runs straight away, unless it needs a choice or confirmation
+    if (enabled.length === 1 && items.length === 1 && !enabled[0].children) {
       enabled[0].run();
       audio.play('ui');
       return;
