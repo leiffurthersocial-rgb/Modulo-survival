@@ -1,5 +1,6 @@
 import type { Character, Dir } from '@/sim/types';
 import { makeCanvas, PixelPainter, shade } from './pixel';
+import { hashString } from '@/core/rng';
 
 export const CW = 16;
 export const CH = 24;
@@ -7,12 +8,14 @@ export const FRAMES = ['idle', 'walk1', 'walk2', 'walk3', 'walk4', 'work1', 'wor
 export type FrameName = (typeof FRAMES)[number];
 const DIRS: Dir[] = ['down', 'up', 'left'];
 
-const OUTER_COLORS: Record<string, string> = {
-  hoodie: '#5e6068',
-  rain_jacket: '#a8402a',
-  winter_jacket: '#2e3e5e',
-  wool_sweater: '#7a5a3a',
+// several variants per garment so a group in the same kind of jacket still reads apart
+const OUTER_COLORS: Record<string, string[]> = {
+  hoodie: ['#5e6068', '#3e4a5e', '#6a4a5a', '#4a5a4a', '#2e2e34'],
+  rain_jacket: ['#a8402a', '#2e5a7a', '#c89a2a', '#3e6a4a', '#6a3a6a'],
+  winter_jacket: ['#2e3e5e', '#1e1e24', '#6a2e2e', '#3e4e3a'],
+  wool_sweater: ['#7a5a3a', '#a89a7a', '#4a3a5a', '#5e2e2e'],
 };
+const BEANIE_COLORS = ['#8a3a2a', '#2e3e5e', '#4a5a3a', '#6a6a6a', '#c8a03a'];
 const LEG_COLORS: Record<string, string> = { jeans: '#3a4a6a', hiking_pants: '#4a4a3e' };
 const SHOE_COLORS: Record<string, string> = { sneakers: '#e2ded4', hiking_boots: '#5a3e26' };
 
@@ -39,7 +42,9 @@ function lookOf(c: Character): Look {
   const a = c.appearance;
   const eq = c.equipment;
   const outer = eq.outer?.id;
-  const torso = outer ? OUTER_COLORS[outer] ?? a.shirtColor : a.shirtColor;
+  const h = hashString(c.id);
+  const variants = outer ? OUTER_COLORS[outer] : undefined;
+  const torso = variants ? variants[h % variants.length] : a.shirtColor;
   return {
     skin: a.skin,
     hair: a.hairColor,
@@ -50,7 +55,7 @@ function lookOf(c: Character): Look {
     legs: eq.legs ? (LEG_COLORS[eq.legs.id] ?? a.pantsColor) : a.pantsColor,
     shoes: eq.feet ? (SHOE_COLORS[eq.feet.id] ?? a.shoeColor) : '#8a7060',
     pack: eq.back ? (eq.back.id === 'hiking_backpack' ? '#3e5a3a' : '#2e3a5a') : undefined,
-    beanie: eq.head?.id === 'beanie' ? '#8a3a2a' : undefined,
+    beanie: eq.head?.id === 'beanie' ? BEANIE_COLORS[(h >>> 3) % BEANIE_COLORS.length] : undefined,
     glasses: a.glasses,
     goatee: a.facialHair === 'goatee',
     build: a.build,

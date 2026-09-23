@@ -284,7 +284,8 @@ export class GameSession {
     else r.highlight = { x: t.animal.x - 0.6, y: t.animal.y - 0.8, w: 1.2, h: 1 };
     const all = getInteractions(g, p, t);
     const opts = all.filter((o) => o.enabled);
-    this.ui.prompt = { name: targetName(g, t), label: opts.length === 1 && all.length === 1 ? opts[0].label : all.length ? 'Interact' : '' };
+    const label = opts.length === 1 && all.length === 1 ? opts[0].label : opts.length ? 'Interact' : all.length ? (all[0].reason ?? all[0].label) : '';
+    this.ui.prompt = { name: targetName(g, t), label };
   }
 
   interact(): void {
@@ -310,6 +311,10 @@ export class GameSession {
       return;
     }
     if (!items.length) return;
+    if (!enabled.length) {
+      this.toast(items[0].reason ?? `${items[0].label}.`, 'warn');
+      return;
+    }
     this.ui.menu = { title: targetName(g, t), items };
     audio.play('uiOpen');
     this.bump();

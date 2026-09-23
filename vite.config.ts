@@ -15,6 +15,8 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['tests/**/*.test.ts'],
+    // `npm run soak` runs the long balance simulations in tools/
+    include: process.env.TOOLS ? ['tools/**/*.test.ts'] : ['tests/**/*.test.ts'],
+    testTimeout: process.env.TOOLS ? 600_000 : 5_000,
   },
 });

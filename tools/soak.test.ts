@@ -1,5 +1,5 @@
 import { it } from 'vitest';
-import { newGame } from './helpers';
+import { newGame } from '../tests/helpers';
 import { log } from '@/core/logger';
 import { formatClock } from '@/sim/clock';
 it('long', () => {

@@ -26,7 +26,7 @@ import { dismantle } from './building';
 import { attackAnimal } from './wildlife';
 import { docById, readDoc } from './loot';
 import { makeStack } from '@/gen/characters';
-import { campToolNear } from './actions';
+import { campToolNear, skillLevel } from './actions';
 
 export type Target =
   | { kind: 'object'; obj: WorldObject }
@@ -199,9 +199,15 @@ export function getInteractions(game: Game, c: Character, t: Target): Interactio
   if (d.fire) {
     for (const fuel of ['branch', 'firewood', 'log', 'plank', 'charcoal']) {
       const n = countItem(c.inventory, fuel);
-      if (n > 0) add(`fuel_${fuel}`, `Add ${itemDef(fuel).name.toLowerCase()} (${n})`, () => startAction(game, c, 'addFuel', 1, { targetId: o.id, data: { item: fuel, qty: fuel === 'branch' ? Math.min(n, 5) : 1 } }));
+      if (n > 0) add(`fuel_${fuel}`, fuel === 'branch' ? `Add ${Math.min(n, 5)} branches (${n} carried)` : `Add ${itemDef(fuel).name.toLowerCase()} (${n} carried)`, () => startAction(game, c, 'addFuel', 1, { targetId: o.id, data: { item: fuel, qty: fuel === 'branch' ? Math.min(n, 5) : 1 } }));
     }
-    if (!o.lit) add('light', 'Light the fire', () => startAction(game, c, 'lightFire', 2, { targetId: o.id }), (o.s ?? 0) > 0 && !!bestTool(c, 'ignite'), (o.s ?? 0) <= 0 ? 'Needs fuel' : 'Needs matches or a lighter');
+    if (!o.lit) {
+      const embers = (o.embers ?? 0) > game.state.time;
+      const ign = !!bestTool(c, 'ignite');
+      const drill = !ign && !embers && skillLevel(c, 'survival') >= 4;
+      const label = embers ? 'Blow on the embers' : drill ? 'Try a hand drill' : 'Light the fire';
+      add('light', label, () => startAction(game, c, 'lightFire', drill ? 25 : 2, { targetId: o.id }), (o.s ?? 0) > 0 && (ign || embers || drill), (o.s ?? 0) <= 0 ? 'Needs fuel' : 'Needs matches or a lighter');
+    }
     if (o.lit) {
       const dirty = c.inventory.some((s) => s?.liquid && s.liquid.ml > 0 && s.liquid.contam > 0.01);
       const pot = !!bestTool(c, 'boil') || !!campToolNear(game, c, 'boil');
