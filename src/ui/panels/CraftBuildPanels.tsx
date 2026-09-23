@@ -13,7 +13,11 @@ export function CraftPanel({ session }: { session: GameSession }) {
   useSession(session);
   const g = session.game;
   const p = g.player;
-  const list = allRecipeStatus(g, p);
+  // what you can make right now comes first, then whatever you are closest to
+  const list = allRecipeStatus(g, p)
+    .map((r, i) => ({ r, i }))
+    .sort((a, b) => Number(b.r.can) - Number(a.r.can) || a.r.missing.length - b.r.missing.length || a.i - b.i)
+    .map((x) => x.r);
   const [filter, setFilter] = useState<'all' | 'fire' | 'can'>('all');
   const shown = list.filter((r) => (filter === 'fire' ? r.recipe.station === 'fire' : filter === 'can' ? r.can : true));
   return (

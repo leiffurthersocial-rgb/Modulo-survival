@@ -389,7 +389,8 @@ export function npcThink(game: Game, c: Character): void {
       if (game.state.homePin) {
         const cap = shelterCapacity(game);
         const living = game.livingCharacters().length;
-        if (cap < living * 0.5) add('buildShelter', 16 + c.skills.construction * 2 + hw + (living * 0.5 - cap) * 1.5 + (cap === 0 ? 20 : 0));
+        // a dry place to sleep for everyone, most urgent until half the group is covered
+        if (cap < living) add('buildShelter', 12 + c.skills.construction * 2 + hw + (living - cap) * 1.2 + (cap < living * 0.5 ? 8 : 0) + (cap === 0 ? 20 : 0));
         if (!game.index.nearestOfType('latrine', h.x, h.y, CAMP_RADIUS + 6)) add('buildLatrine', 14 + (c.traits.includes('practical') ? 10 : 0) + hw);
       }
       if (hasRawFood(game, c) && campFire(game)) add('cook', 18 + c.skills.cooking * 2 + clamp((1 - foodDays) * 15, 0, 15));
@@ -524,6 +525,7 @@ function runTask(game: Game, c: Character, task: TaskId): void {
         if (seekFuel(game, c, fire.x, fire.y, 40)) return;
         return runTask(game, c, 'shelter');
       }
+      if ((fire.s ?? 0) > 0 && goFetchIgniter(game, c, fire)) return;
       return moveOrAct(game, c, fire.x + 0.5, fire.y + 1.6, 2.2, () => {
         if ((fire.s ?? 0) < 50 && feedFire(game, c, fire)) return;
         if ((fire.s ?? 0) <= 0) return runTask(game, c, 'shelter');
@@ -579,6 +581,7 @@ function runTask(game: Game, c: Character, task: TaskId): void {
     case 'tendFire': {
       const fire = campFire(game);
       if (!fire) return runTask(game, c, 'socialise');
+      if ((fire.s ?? 0) > 0 && goFetchIgniter(game, c, fire)) return;
       return moveOrAct(game, c, fire.x + 0.5, fire.y + 1.5, 1.8, () => {
         if ((fire.s ?? 0) < 120 && feedFire(game, c, fire)) return;
         if ((fire.s ?? 0) <= 0) {
@@ -633,8 +636,13 @@ function runTask(game: Game, c: Character, task: TaskId): void {
       return doDeposit(game, c);
     case 'makeFire':
       return doMakeFire(game, c);
-    case 'buildShelter':
+    case 'buildShelter': {
+      // tarps from the supply bag make the biggest, driest shelters: use them first
+      const hasTarp = (id: string) => countItem(c.inventory, id) > 0 || !!findInCamp(game, (s) => s.id === id);
+      const tarpSite = [...game.index.sites].some((id) => game.state.objects[id]?.type === 'tarp_shelter');
+      if (tarpSite || (hasTarp('tarp') && hasTarp('rope'))) return doAutoBuild(game, c, 'tarp_shelter', 'buildShelter', 'The tarps will keep the rain off. I will string one up.');
       return doAutoBuild(game, c, 'lean_to', 'buildShelter', 'We need somewhere dry to sleep. I will put up a lean-to.');
+    }
     case 'buildLatrine':
       return doAutoBuild(game, c, 'latrine', 'buildLatrine', 'Someone has to dig a latrine. Fine, me.');
     case 'purify': {
@@ -817,6 +825,28 @@ function laundryWeather(game: Game): boolean {
 }
 
 /** Make sure the NPC carries something to light a fire with. */
+/**
+ * A cold fire and nothing to light it with: walk to camp storage for the
+ * matches first. Returns true when that errand was started.
+ */
+function goFetchIgniter(game: Game, c: Character, fire: WorldObject): boolean {
+  if (fire.lit || bestTool(c, 'ignite') || (fire.embers ?? 0) > game.state.time) return false;
+  const ig = findInCamp(game, (s) => itemDef(s.id).tool?.tags.includes('ignite') === true && (s.charge ?? 0) > 0);
+  if (!ig) return false;
+  // standing at the storage: just take them and carry on to the fire
+  if (arrived(c, ig.o.x + 0.5, ig.o.y + 0.5, 1.8)) {
+    takeFrom(c, ig.o, ig.o.inv![ig.slot]!.id, 1);
+    return false;
+  }
+  // the fire is right next to storage: fetchIgniter picks them up from there
+  if (Math.hypot(ig.o.x - fire.x, ig.o.y - fire.y) <= 6) return false;
+  // one fetcher is enough: skip if someone near the fire already holds one
+  const helper = game.livingCharacters().some((o) => o !== c && !!bestTool(o, 'ignite') && Math.hypot(o.x - fire.x, o.y - fire.y) < 6);
+  if (helper) return false;
+  moveOrAct(game, c, ig.o.x + 0.5, ig.o.y + 0.5, 1.6, () => takeFrom(c, ig.o, ig.o.inv![ig.slot]!.id, 1));
+  return true;
+}
+
 function fetchIgniter(game: Game, c: Character, fire?: WorldObject): boolean {
   if (bestTool(c, 'ignite')) return true;
   if (fire && (fire.embers ?? 0) > game.state.time) return true;

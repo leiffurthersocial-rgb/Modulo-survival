@@ -5,7 +5,7 @@ import { itemDef } from '@/content/items';
 import { objectDef } from '@/content/objects';
 import type { EquipSlot, ItemStack } from '@/sim/types';
 import { addItem, carryCapacity, describeStack, totalWeight, slotCapacity } from '@/sim/inventory';
-import { itemActions, unequip } from '@/sim/interactions';
+import { consumeNow, itemActions, unequip } from '@/sim/interactions';
 import { ensureLoot } from '@/sim/loot';
 
 const EQUIP: [EquipSlot, string][] = [
@@ -93,12 +93,16 @@ export function InventoryPanel({ session }: { session: GameSession }) {
                 selected={sel?.from === 'inv' && sel.i === i}
                 label={i >= 8 ? 'pack' : undefined}
                 onClick={() => setSel({ from: 'inv', i })}
-                onDoubleClick={() => (box && boxInRange ? moveToBox(i) : undefined)}
+                onDoubleClick={() => {
+                  // double-click food or a drink to consume it on the spot; with a box open it moves the item
+                  if (box && boxInRange) moveToBox(i);
+                  else if (consumeNow(g, p, i)) session.bump();
+                }}
               />
             ))}
           </div>
           <span className="faint" style={{ fontSize: '0.85em' }}>
-            {p.inventory.filter(Boolean).length}/{slotCapacity(p)} slots. {weight > cap ? 'Overloaded: you move slowly and tire fast.' : ''}
+            {p.inventory.filter(Boolean).length}/{slotCapacity(p)} slots. {weight > cap ? 'Overloaded: you move slowly and tire fast.' : 'Double-click food or a bottle to eat or drink at once.'}
           </span>
           <h3 style={{ marginTop: 6 }}>Worn and carried</h3>
           <div className="slots" style={{ maxWidth: 6 * 63 }}>

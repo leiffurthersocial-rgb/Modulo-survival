@@ -41,7 +41,7 @@ export const OBJECTIVES: Objective[] = [
   {
     id: 'drink',
     title: 'Drink something',
-    how: 'Open your Bag (I) and drink from the bottle, or face the stream and press E. Stream water can make you sick.',
+    how: 'Open your Bag (I) and double-click the water bottle, or face the stream and press E. Stream water can make you sick.',
     done: (g) => did(g, 'drinkItem') || did(g, 'drinkWater'),
   },
   {

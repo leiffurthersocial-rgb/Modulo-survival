@@ -4,7 +4,7 @@ import { isWater } from '@/content/terrain';
 import { CROPS } from '@/content/crops';
 import { ANIMALS } from '@/content/animals';
 import type { Game } from './game';
-import type { Animal, Character, EquipSlot, ItemStack, WorldObject } from './types';
+import type { ActionState, Animal, Character, EquipSlot, ItemStack, WorldObject } from './types';
 import {
   addItem,
   bestTool,
@@ -27,7 +27,8 @@ import { clothingDirt } from './body';
 import { attackAnimal } from './wildlife';
 import { docById, readDoc } from './loot';
 import { makeStack } from '@/gen/characters';
-import { campToolNear, skillLevel } from './actions';
+import { ACTIONS, campToolNear, skillLevel } from './actions';
+import { notePlayerDid } from './objectives';
 
 export type Target =
   | { kind: 'object'; obj: WorldObject }
@@ -44,6 +45,8 @@ export interface Interaction {
 }
 
 export const REACH = 1.7;
+/** Anything this close counts even beside or behind you. */
+const TOUCH = 0.8;
 
 /**
  * What the character is facing: the first thing along a short line straight
@@ -74,9 +77,26 @@ export function findTarget(game: Game, c: Character, tileX?: number, tileY?: num
     // a wall or anything solid ends the line of reach
     if (game.index.isSolid(Math.floor(px), Math.floor(py))) break;
   }
-  // standing on something low (a pile, a bed, a crop): that counts as in front too
-  const under = game.index.objAt(c.x, c.y);
-  if (under && under.type !== 'flowers' && !objectDef(under.type).solid) return { kind: 'object', obj: under };
+  // nothing ahead: something practically touching counts from any side,
+  // including what you stand on (a pile, a bed, a crop)
+  let best: Target | undefined;
+  let bd = TOUCH;
+  for (const o of game.livingCharacters()) {
+    if (o === c) continue;
+    const d = Math.hypot(o.x - c.x, o.y - c.y);
+    if (d < bd) (bd = d), (best = { kind: 'character', char: o });
+  }
+  for (const a of Object.values(game.state.animals)) {
+    if (a.state === 'dead') continue;
+    const d = Math.hypot(a.x - c.x, a.y - c.y);
+    if (d < bd) (bd = d), (best = { kind: 'animal', animal: a });
+  }
+  game.index.objectsNear(c.x, c.y, 1, (o) => {
+    if (o.type === 'flowers') return;
+    const d = def2(o, c);
+    if (d < bd - 0.25) (bd = d + 0.25), (best = { kind: 'object', obj: o });
+  });
+  if (best) return best;
   if (isWater(game.index.terrainAt(c.x, c.y))) return { kind: 'water', x: Math.floor(c.x), y: Math.floor(c.y) };
   return undefined;
 }
@@ -370,14 +390,37 @@ export interface ItemAction {
   enabled?: boolean;
 }
 
+/**
+ * Eat or drink straight from the inventory, instantly (no action to wait
+ * through). Drinks as much as the character wants, up to what the bottle holds.
+ */
+export function consumeNow(game: Game, c: Character, slot: number): boolean {
+  const s = c.inventory[slot];
+  if (!s || !c.alive || c.sleeping) return false;
+  const d = itemDef(s.id);
+  const fake = (type: string, data: Record<string, unknown>) => ({ type, elapsed: 0, duration: 0, data }) as unknown as ActionState;
+  if (d.food) {
+    ACTIONS.eat.complete(game, c, fake('eat', { slot, item: s.id, from: 'inv' }));
+    if (game.isPlayer(c)) notePlayerDid(game, 'eat');
+    return true;
+  }
+  if (s.liquid && s.liquid.ml > 0) {
+    const ml = Math.min(s.liquid.ml, Math.max(250, (100 - c.needs.hydration) * 25));
+    ACTIONS.drinkItem.complete(game, c, fake('drinkItem', { slot, ml }));
+    if (game.isPlayer(c)) notePlayerDid(game, 'drinkItem');
+    return true;
+  }
+  return false;
+}
+
 export function itemActions(game: Game, c: Character, slot: number): ItemAction[] {
   const s = c.inventory[slot];
   if (!s) return [];
   const d = itemDef(s.id);
   const out: ItemAction[] = [];
-  if (d.food) out.push({ id: 'eat', label: 'Eat', run: () => startAction(game, c, 'eat', d.food!.eatMinutes ?? 5, { data: { slot, item: s.id, from: 'inv' } }) });
+  if (d.food) out.push({ id: 'eat', label: 'Eat', run: () => void consumeNow(game, c, slot) });
   if (s.liquid && s.liquid.ml > 0) {
-    out.push({ id: 'drink', label: 'Drink', run: () => startAction(game, c, 'drinkItem', 1, { data: { slot, ml: 400 } }) });
+    out.push({ id: 'drink', label: 'Drink', run: () => void consumeNow(game, c, slot) });
     if (s.liquid.contam > 0.02 && countItem(c.inventory, 'purify_tablets') > 0)
       out.push({ id: 'purify', label: 'Treat with tablet', run: () => purify(game, c, s) });
     out.push({ id: 'empty', label: 'Pour out', run: () => ((s.liquid!.ml = 0), (s.liquid!.contam = 0)) });

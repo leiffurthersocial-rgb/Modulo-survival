@@ -34,18 +34,18 @@ caching for hashed assets, and a rewrite so any route falls back to
 | Key | Action |
 | --- | --- |
 | WASD / arrows | Move (Shift to sprint) |
-| E / Space | Use the thing directly in front of you, if within reach (opens a numbered menu if there are several options; press 1-9) |
+| E / Space | Use the thing directly in front of you, if within reach, or anything you are practically touching (opens a numbered menu if there are several options; press 1-9) |
 | Mouse click | Interact with a nearby object, classmate or animal |
 | F | Strike at the nearest animal |
-| I / Tab | Inventory, equipment and open containers |
-| K | Crafting (cooking appears near a lit fire) |
+| I / Tab | Inventory, equipment and open containers. Double-click food or a bottle to eat or drink instantly |
+| K | Crafting (what you can make now is listed first; cooking appears near a lit fire) |
 | B | Build menu; place with click or E, cancel with right-click or P |
 | M | Map with fog of war and your own markers |
 | G | Group: classmates, orders, expeditions |
 | O | Camp overview |
 | C | Character sheet |
 | J | Journal, found documents, calendar |
-| Z | Sleep / wake up |
+| Z | Sleep / wake up. At night you sleep until first light; in daylight only when tired |
 | T | Relieve yourself (uses a latrine if you stand at one) |
 | H | Set the Home Pin (the group makes camp there) |
 | L | Hold or put away a flashlight or torch |
@@ -75,6 +75,8 @@ Everything listed here works in the game and affects the simulation.
   looks, traits, skills, attributes and background are the same in every
   world; the seed only changes the forest and what people carry. Attributes
   add up to the same budget for everyone, so nobody is strictly better.
+- **World**: open woodland with meadows, a wide clearing where the class
+  starts, and broad paths and forest roads between places.
 - **Onboarding**: a new world opens with a short welcome card. A First steps
   checklist on the HUD walks you through the first day (supply bag, water,
   camp spot, fire, shelter, sleep) and ticks itself off from what happens in
@@ -91,8 +93,10 @@ Everything listed here works in the game and affects the simulation.
   insulate a little worse and make you dirtier faster. Wash them at the water
   or at a wash station; they come back clean and damp, so pick a mild midday
   or stand by a fire.
-- **Sleep**: you wake around sunrise or when rested, or earlier because of
-  cold, rain, thirst or pain. Time runs faster while you sleep.
+- **Sleep**: from an hour before sunset you can turn in and sleep the whole
+  night through to first light, unless cold, rain, thirst or pain wakes you.
+  In daylight you can only nap when tired, and a nap ends once rested. Time
+  runs faster while you sleep.
 - **Water**: streams, ponds and the lake carry different contamination; waste
   left in the open contaminates the area and water nearby. Boiling (fire and
   pot), purification tablets, a charcoal sand filter and rain collectors.

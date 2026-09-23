@@ -39,7 +39,7 @@ const SECTIONS: Section[] = [
             <tr><td><K>W</K><K>A</K><K>S</K><K>D</K> or arrows</td><td>Walk. Hold <K>Shift</K> to sprint (uses stamina).</td></tr>
             <tr><td><K>E</K> or <K>Space</K></td><td>Interact with the thing directly in front of you, if it is within reach (about a step and a half). Turn to face something to use it. With several choices a menu opens; pick with the number keys or a click.</td></tr>
             <tr><td>Mouse click</td><td>Interact with the thing you click on, if it is close.</td></tr>
-            <tr><td><K>I</K> / <K>Tab</K></td><td>Bag: your inventory, clothing and anything you have open.</td></tr>
+            <tr><td><K>I</K> / <K>Tab</K></td><td>Bag: your inventory, clothing and anything you have open. Double-click food or a water bottle to eat or drink it instantly.</td></tr>
             <tr><td><K>K</K></td><td>Craft tools, food and supplies.</td></tr>
             <tr><td><K>B</K></td><td>Build: fires, shelters, latrine, storage.</td></tr>
             <tr><td><K>M</K></td><td>Map (pauses the game).</td></tr>
@@ -47,7 +47,7 @@ const SECTIONS: Section[] = [
             <tr><td><K>O</K></td><td>Camp overview: people, structures, stores.</td></tr>
             <tr><td><K>C</K></td><td>Your character: condition, skills, relationships.</td></tr>
             <tr><td><K>J</K></td><td>Journal of what has happened.</td></tr>
-            <tr><td><K>Z</K></td><td>Sleep, or wake up.</td></tr>
+            <tr><td><K>Z</K></td><td>Sleep, or wake up. At night you sleep until morning; in daylight you can only nap when tired.</td></tr>
             <tr><td><K>T</K></td><td>Go to the toilet (uses a latrine if one is next to you).</td></tr>
             <tr><td><K>H</K></td><td>Set the Home Pin where you stand: the group makes camp there.</td></tr>
             <tr><td><K>L</K></td><td>Flashlight or torch on/off.</td></tr>
@@ -83,7 +83,7 @@ const SECTIONS: Section[] = [
         <ul>
           <li><b>Water:</b> the most urgent need. You last only a few days without it.</li>
           <li><b>Food:</b> when your stomach is empty your body lives off its reserves. That buys time, about two weeks, but you get weaker as they run down.</li>
-          <li><b>Rest:</b> sleep at night. Sleep is better in a shelter, on a bed of boughs or in a sleeping bag, and next to a fire.</li>
+          <li><b>Rest:</b> sleep at night. From an hour before sunset you can turn in, and you sleep through until first light unless cold, rain, thirst or a wound wakes you. In the day you can only nap when the Rest bar is low. Sleep is better in a shelter, on a bed of boughs or in a sleeping bag, and next to a fire.</li>
           <li><b>Warmth:</b> your core temperature. Stay dry, stay out of the wind, sit by a fire, wear warm clothes. Sleeping close to others shares warmth.</li>
           <li><b>Clean:</b> dirt raises the risk of illness and infected wounds. Wash in a stream. Clothes get dirty too; wash them on a mild day or by a fire, since they come back damp.</li>
           <li><b>Toilet:</b> go before it is urgent. A latrine keeps waste away from camp and water.</li>

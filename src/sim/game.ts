@@ -64,6 +64,9 @@ export interface PlayerInput {
   sprint: boolean;
 }
 
+/** The player can only nap in daylight when Rest is at or below this. */
+export const DAY_NAP_ENERGY = 45;
+
 /** Real seconds -> game minutes at 1x speed. */
 export const MINUTES_PER_SECOND = 1;
 export const WALK_SPEED = 4.2; // tiles per game minute
@@ -481,11 +484,22 @@ export class Game {
     return clamp(q, 0.12, 1);
   }
 
+  /** Evening and night: from an hour before sunset until sunrise. */
+  isBedtime(t = this.state.time): boolean {
+    const h = hourOf(t);
+    const { rise, set } = sunTimes(t);
+    return h >= set - 1 || h < rise;
+  }
+
   startSleep(c: Character): boolean {
     if (c.sleeping) return true;
-    if (c.needs.energy > 85 && this.isPlayer(c)) {
-      this.message('You are not tired enough to sleep.', 'info');
-      return false;
+    if (this.isPlayer(c)) {
+      // at night anyone can turn in; in the day only when really tired
+      const night = this.isBedtime();
+      if (night ? c.needs.energy > 95 : c.needs.energy > DAY_NAP_ENERGY) {
+        this.message(night ? 'You are wide awake. Maybe later.' : 'You are not tired enough to sleep in broad daylight.', 'info');
+        return false;
+      }
     }
     c.sleeping = true;
     c.sleepStart = this.state.time;
@@ -518,8 +532,16 @@ export class Game {
     const { rise } = sunTimes(t);
     const slept = t - (c.sleepStart ?? t);
     let reason = '';
-    if (n.energy >= 99) reason = 'You wake up fully rested.';
-    else if (h >= rise - 0.5 && h < rise + 3 && n.energy >= 62 && slept > 180) reason = 'You wake with the first light.';
+    const player = this.isPlayer(c);
+    // the player sleeps the whole night through and gets up with the light;
+    // a daytime nap ends once rested
+    const dawn = h >= rise - 0.5 && h < rise + 3;
+    const nightSleep = player && this.isBedtime(c.sleepStart ?? t);
+    if (nightSleep) {
+      if (dawn && slept > 180 && n.energy >= 62) reason = 'You wake with the first light.';
+      else if (!this.isBedtime() && !dawn && n.energy >= 90) reason = 'You wake up rested. The morning is already well on.';
+    } else if (n.energy >= (player ? 95 : 99)) reason = player ? 'You wake from your nap, rested.' : 'You wake up fully rested.';
+    else if (dawn && n.energy >= 62 && slept > 180) reason = 'You wake with the first light.';
     // too exhausted to be woken by discomfort
     else if (n.hydration < 8 && n.energy > 20) reason = 'You wake up parched.';
     else if (n.bodyTemp < (this.isPlayer(c) ? 35.4 : 36) && n.energy > 15) reason = 'You wake up shivering. It is too cold to sleep.';

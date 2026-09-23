@@ -105,3 +105,57 @@ describe('survival needs', () => {
     expect(p.needs.wetness).toBeGreaterThanOrEqual(55);
   });
 });
+
+describe('eating and drinking from the inventory', () => {
+  it('is instant, like using an item in the bag', async () => {
+    const { consumeNow } = await import('@/sim/interactions');
+    const g = newGame();
+    const p = isolate(g);
+    p.needs.hydration = 40;
+    p.needs.satiety = 20;
+    const bottle = p.inventory.findIndex((s) => s?.id === 'water_bottle');
+    p.inventory[bottle]!.liquid = { ml: 1000, contam: 0 };
+    expect(consumeNow(g, p, bottle)).toBe(true);
+    expect(p.needs.hydration).toBeGreaterThan(55);
+    expect(p.action).toBeUndefined();
+    const ration = p.inventory.findIndex((s) => s?.id === 'ration');
+    const before = p.inventory[ration]!.qty;
+    expect(consumeNow(g, p, ration)).toBe(true);
+    expect(p.needs.satiety).toBeGreaterThan(20);
+    expect(p.inventory[ration]?.qty ?? 0).toBe(before - 1);
+    expect(p.action).toBeUndefined();
+  });
+});
+
+describe('player sleep', () => {
+  it('refuses a daytime nap unless tired, and sleeps the whole night through', async () => {
+    const { hourOf, sunTimes } = await import('@/sim/clock');
+    const g = newGame();
+    const p = isolate(g);
+    p.needs.hydration = 100;
+    p.needs.satiety = 100;
+    // midday, not tired: refused
+    g.state.time = Math.floor(g.state.time / 1440) * 1440 + 12 * 60;
+    p.needs.energy = 70;
+    expect(g.startSleep(p)).toBe(false);
+    // midday, exhausted: a nap is fine and ends once rested
+    p.needs.energy = 30;
+    expect(g.startSleep(p)).toBe(true);
+    g.wake(p, 'test');
+
+    // 21:00, fairly fresh: bed is fine at night, and it lasts until first light
+    g.state.time = Math.floor(g.state.time / 1440) * 1440 + 21 * 60;
+    p.needs.energy = 80;
+    p.needs.bodyTemp = 37;
+    g.settings.godMode = true;
+    expect(g.startSleep(p)).toBe(true);
+    let wokeAt = -1;
+    for (let i = 0; i < 16 * 60 && wokeAt < 0; i++) {
+      g.advance(1);
+      if (!p.sleeping) wokeAt = g.state.time;
+    }
+    const { rise } = sunTimes(wokeAt);
+    expect(hourOf(wokeAt)).toBeGreaterThanOrEqual(rise - 0.6);
+    expect(hourOf(wokeAt)).toBeLessThan(rise + 3.1);
+  });
+});

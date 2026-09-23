@@ -280,16 +280,19 @@ export function generateWorld(opts: WorldOptions): GameState {
 
   // --- Main road on the east edge ----------------------------------------
   const roadX = (y: number) => W - 26 + (valueNoise(seed + 80, 0, y / 50) - 0.5) * 14;
-  for (let y = 0; y < H; y += 1) carve(c, roadX(y), y, roadX(y + 1), y + 1, 3.2, T.ROAD, 0, T.CONCRETE);
+  for (let y = 0; y < H; y += 1) carve(c, roadX(y), y, roadX(y + 1), y + 1, 4.2, T.ROAD, 0, T.CONCRETE);
 
   // --- POIs ----------------------------------------------------------------
   // the class starts in the forest, a short but not obvious walk from the stream
   const startY = rng.int(150, 190);
   const start = { x: Math.max(22, Math.round(streamAt(startY)) - rng.int(26, 34)), y: startY };
-  blob(c, start.x, start.y, 6, (x, y) => {
+  // a wide open clearing: grass all round, the middle kept completely free
+  blob(c, start.x, start.y, 14, (x, y) => {
     if (!isWater(c.terrain[idx(c, x, y)])) setT(c, x, y, T.GRASS);
-    c.reserved[idx(c, x, y)] = 1;
   }, 9);
+  blob(c, start.x, start.y, 7, (x, y) => {
+    c.reserved[idx(c, x, y)] = 1;
+  }, 10);
 
   // Grillstelle (forest barbecue spot) beside the stream
   const gy = start.y + rng.int(-12, 12);
@@ -371,15 +374,15 @@ export function generateWorld(opts: WorldOptions): GameState {
 
   // --- Roads and paths ---------------------------------------------------
   const forestRoadY = shedY + 6;
-  carve(c, roadX(forestRoadY), forestRoadY, shedX + 4, forestRoadY, 2.4, T.GRAVEL, 4, T.CONCRETE);
-  carve(c, shedX + 4, forestRoadY, gx + 6, gy - 20, 2.2, T.GRAVEL, 12, T.CONCRETE);
-  carve(c, roadX(farmY + 7), farmY + 7, farmX + 4, farmY + 7, 2.4, T.GRAVEL, 3, T.CONCRETE);
-  carve(c, start.x, start.y, gx, gy, 1.4, T.PATH, 6, null);
-  carve(c, start.x, start.y, hutX + 3, hutY + 6, 1.4, T.PATH, 14, null);
-  carve(c, gx, gy, gx + 6, gy - 20, 1.4, T.PATH, 4, null);
-  carve(c, start.x, start.y, campX, campY, 1.3, T.PATH, 18, null);
-  carve(c, gx, gy, px, py + 5, 1.3, T.PATH, 16, null);
-  carve(c, gx + 6, gy - 20, rockX, rockY + 12, 1.2, T.PATH, 10, null);
+  carve(c, roadX(forestRoadY), forestRoadY, shedX + 4, forestRoadY, 3.6, T.GRAVEL, 4, T.CONCRETE);
+  carve(c, shedX + 4, forestRoadY, gx + 6, gy - 20, 3.4, T.GRAVEL, 12, T.CONCRETE);
+  carve(c, roadX(farmY + 7), farmY + 7, farmX + 4, farmY + 7, 3.6, T.GRAVEL, 3, T.CONCRETE);
+  carve(c, start.x, start.y, gx, gy, 3, T.PATH, 6, null);
+  carve(c, start.x, start.y, hutX + 3, hutY + 6, 2.8, T.PATH, 14, null);
+  carve(c, gx, gy, gx + 6, gy - 20, 2.8, T.PATH, 4, null);
+  carve(c, start.x, start.y, campX, campY, 2.6, T.PATH, 18, null);
+  carve(c, gx, gy, px, py + 5, 2.6, T.PATH, 16, null);
+  carve(c, gx + 6, gy - 20, rockX, rockY + 12, 2.4, T.PATH, 10, null);
 
   // Cars abandoned on the road
   for (let i = 0; i < 3; i++) {
@@ -416,7 +419,10 @@ export function generateWorld(opts: WorldOptions): GameState {
       const dens = fbm(seed + 7, x / 26, y / 26, 3);
       const zone = fbm(seed + 9, x / 34, y / 34, 3);
       if (t === T.FOREST) {
-        const pTree = 0.12 + dens * 0.36;
+        // open woodland rather than a wall of trunks; thinner still near the start
+        const fromStart = Math.hypot(x - start.x, y - start.y);
+        const nearStart = fromStart < 28 ? 0.35 + 0.65 * Math.max(0, (fromStart - 14) / 14) : 1;
+        const pTree = (0.05 + dens * 0.17) * nearStart;
         if (r < pTree) {
           let type = 'spruce';
           if (zone > 0.57) type = r2 < 0.85 ? 'beech' : 'oak';
