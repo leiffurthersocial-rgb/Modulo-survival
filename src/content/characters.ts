@@ -1,4 +1,4 @@
-import type { Appearance, AttributeId, HairStyle, TraitId } from '@/sim/types';
+import type { Appearance, AttributeId, SkillId, TraitId } from '@/sim/types';
 
 export const SKIN = {
   fair: '#f2d0b0',
@@ -26,97 +26,162 @@ export const EYES = { brown: '#4a2c1a', blue: '#3a6ea8', green: '#4a7a3a', hazel
 export interface KnownCharacter {
   id: string;
   name: string;
+  sex: 'm' | 'f';
   appearance: Omit<Appearance, 'description'>;
   description: string;
-  /** attribute biases from build; final values are rolled around these */
-  attributeBias: Partial<Record<AttributeId, number>>;
+  /** Personality: always three traits, never a conflicting pair. */
+  traits: TraitId[];
+  background: string;
+  /** Attributes 2..9, summing to ATTRIBUTE_BUDGET so nobody is strictly better. */
+  attributes: Record<AttributeId, number>;
+  /** Skills that differ from the baseline of 1. */
+  skills: Partial<Record<SkillId, number>>;
 }
 
 const base = { facialHair: 'none' as const, glasses: false, shoeColor: '#e8e4dc' };
+const attrs = (strength: number, endurance: number, agility: number, dexterity: number, recovery: number, constitution: number) => ({
+  strength, endurance, agility, dexterity, recovery, constitution,
+});
 
-/** The eight known boys. Their appearance is fixed across every world. */
+/**
+ * The whole class: sixteen fixed classmates. Looks, personality, stats and
+ * skills are the same in every world; only the world and starting kit vary.
+ */
 export const KNOWN_BOYS: KnownCharacter[] = [
   {
-    id: 'robin', name: 'Robin', description: 'Blonde hair, brown eyes. Average height and build.',
+    id: 'robin', name: 'Robin', sex: 'm', description: 'Blonde hair, brown eyes. Average height and build.',
     appearance: { ...base, skin: SKIN.light, hairColor: HAIR.blonde, hairStyle: 'short', eyeColor: EYES.brown, height: 'average', build: 'average', shirtColor: '#3a5a8a', pantsColor: '#2e3a52' },
-    attributeBias: {},
+    traits: ['social', 'practical', 'anxious'],
+    background: 'Plays handball and was the class organiser for every trip.',
+    attributes: attrs(5, 5, 5, 5, 5, 5),
+    skills: { navigation: 4, cooking: 4, firstAid: 3 },
   },
   {
-    id: 'leif', name: 'Leif', description: 'Brown, fluffy hair and blue eyes. Average height, athletic build. Black t-shirt.',
+    id: 'leif', name: 'Leif', sex: 'm', description: 'Brown, fluffy hair and blue eyes. Average height, athletic build. Black t-shirt.',
     appearance: { ...base, skin: SKIN.light, hairColor: HAIR.lightBrown, hairStyle: 'fluffy', eyeColor: EYES.blue, height: 'average', build: 'athletic', shirtColor: '#1c1c20', pantsColor: '#3a4150', shoeColor: '#2a2a2e' },
-    attributeBias: { strength: 1.5, endurance: 1, agility: 0.5 },
+    traits: ['curious', 'independent', 'brave'],
+    background: 'Climbed and hiked with family in Graubünden most holidays.',
+    attributes: attrs(7, 6, 6, 4, 4, 3),
+    skills: { survival: 5, navigation: 5, construction: 3 },
   },
   {
-    id: 'jovan', name: 'Jovan', description: 'Brown hair, brown eyes. Tall with a slim, athletic build.',
+    id: 'jovan', name: 'Jovan', sex: 'm', description: 'Brown hair, brown eyes. Tall with a slim, athletic build.',
     appearance: { ...base, skin: SKIN.medium, hairColor: HAIR.brown, hairStyle: 'short', eyeColor: EYES.brown, height: 'tall', build: 'slim', shirtColor: '#6a2a2a', pantsColor: '#2a2e38' },
-    attributeBias: { agility: 2, endurance: 1, strength: -0.5 },
+    traits: ['practical', 'cautious', 'introverted'],
+    background: 'Ran cross-country for the school team.',
+    attributes: attrs(4, 7, 7, 5, 4, 3),
+    skills: { foraging: 4, hunting: 4, trapping: 3 },
   },
   {
-    id: 'leonidas', name: 'Leonidas', description: 'Brown hair, brown eyes. A little shorter than average, very muscular.',
+    id: 'leonidas', name: 'Leonidas', sex: 'm', description: 'Brown hair, brown eyes. A little shorter than average, very muscular.',
     appearance: { ...base, skin: SKIN.olive, hairColor: HAIR.darkBrown, hairStyle: 'buzz', eyeColor: EYES.brown, height: 'short', build: 'muscular', shirtColor: '#4a5a3a', pantsColor: '#30343c' },
-    attributeBias: { strength: 3, agility: -1, endurance: 0.5 },
+    traits: ['stubborn', 'brave', 'hardworking'],
+    background: 'Did an apprenticeship taster week as a carpenter.',
+    attributes: attrs(9, 6, 3, 4, 4, 4),
+    skills: { construction: 5, crafting: 4 },
   },
   {
-    id: 'erim', name: 'Erim', description: 'Black hair, brown eyes, glasses and a goatee. Average height and build.',
+    id: 'erim', name: 'Erim', sex: 'm', description: 'Black hair, brown eyes, glasses and a goatee. Average height and build.',
     appearance: { ...base, skin: SKIN.medium, hairColor: HAIR.black, hairStyle: 'short', eyeColor: EYES.brown, height: 'average', build: 'average', glasses: true, facialHair: 'goatee', shirtColor: '#5a5a62', pantsColor: '#262a32' },
-    attributeBias: { dexterity: 1.5 },
+    traits: ['curious', 'practical', 'optimistic'],
+    background: 'Helped at a family garage after school.',
+    attributes: attrs(4, 4, 5, 8, 4, 5),
+    skills: { mechanics: 6, crafting: 5, construction: 2 },
   },
   {
-    id: 'lennard', name: 'Lennard', description: 'Brown hair in a middle part, brown eyes. Average height and build.',
+    id: 'lennard', name: 'Lennard', sex: 'm', description: 'Brown hair in a middle part, brown eyes. Average height and build.',
     appearance: { ...base, skin: SKIN.light, hairColor: HAIR.brown, hairStyle: 'middlePart', eyeColor: EYES.brown, height: 'average', build: 'average', shirtColor: '#c8c0b0', pantsColor: '#3c4a64' },
-    attributeBias: {},
+    traits: ['optimistic', 'social', 'lazy'],
+    background: 'Grew up in a flat in Glattbrugg; had never slept outdoors before.',
+    attributes: attrs(5, 4, 5, 5, 6, 5),
+    skills: { cooking: 5, firstAid: 3 },
   },
   {
-    id: 'till', name: 'Till', description: 'Blonde hair, blue eyes. Average height and build.',
+    id: 'till', name: 'Till', sex: 'm', description: 'Blonde hair, blue eyes. Average height and build.',
     appearance: { ...base, skin: SKIN.fair, hairColor: HAIR.darkBlonde, hairStyle: 'short', eyeColor: EYES.blue, height: 'average', build: 'average', shirtColor: '#2a5a4a', pantsColor: '#3a3a40' },
-    attributeBias: {},
+    traits: ['compassionate', 'hardworking', 'anxious'],
+    background: 'Wanted to study medicine; volunteered with the Samariterverein.',
+    attributes: attrs(4, 5, 5, 6, 5, 5),
+    skills: { firstAid: 6, medicine: 4 },
   },
   {
-    id: 'tusya', name: 'Tusya', description: 'Brown skin, black hair, brown eyes. Average height and build.',
+    id: 'tusya', name: 'Tusya', sex: 'm', description: 'Brown skin, black hair, brown eyes. Average height and build.',
     appearance: { ...base, skin: SKIN.brown, hairColor: HAIR.black, hairStyle: 'short', eyeColor: EYES.brown, height: 'average', build: 'average', shirtColor: '#8a6a2a', pantsColor: '#2a2e38' },
-    attributeBias: {},
+    traits: ['introverted', 'cautious', 'stubborn'],
+    background: 'Spent a lot of time fishing with a grandfather on the Rhine.',
+    attributes: attrs(5, 6, 5, 6, 4, 4),
+    skills: { fishing: 6, trapping: 4, survival: 2 },
   },
 ];
 
-/** Name pool for the generated girls: names plausible for a Zurich-area class. */
-export const GIRL_NAMES = [
-  'Lea', 'Mia', 'Nora', 'Selina', 'Alina', 'Jana', 'Chiara', 'Lara', 'Elena', 'Sara', 'Leonie', 'Lina',
-  'Noemi', 'Livia', 'Ronja', 'Aylin', 'Mira', 'Elif', 'Julia', 'Jasmin', 'Seraina', 'Flurina', 'Ladina',
-  'Anja', 'Vanessa', 'Melina', 'Amina', 'Luana', 'Nina', 'Valentina', 'Emma', 'Zoe', 'Hana', 'Ilaria',
+export const KNOWN_GIRLS: KnownCharacter[] = [
+  {
+    id: 'mia', name: 'Mia', sex: 'f', description: 'Dark blonde hair tied back, green eyes. Average height, athletic build.',
+    appearance: { ...base, skin: SKIN.light, hairColor: HAIR.darkBlonde, hairStyle: 'ponytail', eyeColor: EYES.green, height: 'average', build: 'athletic', shirtColor: '#5a6a4a', pantsColor: '#4a4238', shoeColor: '#8a6a4a' },
+    traits: ['brave', 'riskTaking', 'hardworking'],
+    background: 'Was a scout leader in the Pfadi for three years.',
+    attributes: attrs(5, 7, 6, 4, 4, 4),
+    skills: { survival: 6, navigation: 4, hunting: 2 },
+  },
+  {
+    id: 'nora', name: 'Nora', sex: 'f', description: 'Curly red hair, green eyes. Shorter than average, slim build.',
+    appearance: { ...base, skin: SKIN.fair, hairColor: HAIR.red, hairStyle: 'curly', eyeColor: EYES.green, height: 'short', build: 'slim', shirtColor: '#c8c0b0', pantsColor: '#2e3a52' },
+    traits: ['curious', 'optimistic', 'social'],
+    background: 'Knows plants from a mother who kept a large garden.',
+    attributes: attrs(3, 5, 6, 6, 5, 5),
+    skills: { foraging: 6, farming: 4, cooking: 2 },
+  },
+  {
+    id: 'seraina', name: 'Seraina', sex: 'f', description: 'Brown hair in a braid, blue eyes. Tall, athletic build.',
+    appearance: { ...base, skin: SKIN.light, hairColor: HAIR.brown, hairStyle: 'braid', eyeColor: EYES.blue, height: 'tall', build: 'athletic', shirtColor: '#7a3a4a', pantsColor: '#34302c', shoeColor: '#8a6a4a' },
+    traits: ['hardworking', 'practical', 'stubborn'],
+    background: 'Spent summers helping on an uncle\'s farm near Rafz.',
+    attributes: attrs(7, 6, 4, 4, 4, 5),
+    skills: { farming: 6, construction: 3, hunting: 3 },
+  },
+  {
+    id: 'alina', name: 'Alina', sex: 'f', description: 'Long black hair, brown eyes. Average height and build.',
+    appearance: { ...base, skin: SKIN.tan, hairColor: HAIR.black, hairStyle: 'long', eyeColor: EYES.brown, height: 'average', build: 'average', shirtColor: '#3a4a6a', pantsColor: '#2a2a30' },
+    traits: ['compassionate', 'cautious', 'introverted'],
+    background: 'Cooked for younger siblings most evenings.',
+    attributes: attrs(4, 5, 4, 6, 6, 5),
+    skills: { cooking: 6, medicine: 3, foraging: 2 },
+  },
+  {
+    id: 'livia', name: 'Livia', sex: 'f', description: 'Dark brown hair in a bun, hazel eyes, glasses. Average height, slim build.',
+    appearance: { ...base, skin: SKIN.olive, hairColor: HAIR.darkBrown, hairStyle: 'bun', eyeColor: EYES.hazel, height: 'average', build: 'slim', glasses: true, shirtColor: '#4a3a5a', pantsColor: '#3c4a64', shoeColor: '#2a2a2e' },
+    traits: ['curious', 'introverted', 'anxious'],
+    background: 'Was the quiet one who always had a book.',
+    attributes: attrs(3, 4, 5, 7, 5, 6),
+    skills: { medicine: 5, navigation: 3, crafting: 3 },
+  },
+  {
+    id: 'chiara', name: 'Chiara', sex: 'f', description: 'Curly dark brown hair, brown eyes. Shorter than average, average build.',
+    appearance: { ...base, skin: SKIN.medium, hairColor: HAIR.darkBrown, hairStyle: 'curly', eyeColor: EYES.brown, height: 'short', build: 'average', shirtColor: '#9a5a3a', pantsColor: '#2e3a52' },
+    traits: ['social', 'optimistic', 'riskTaking'],
+    background: 'Worked weekends in a bakery in Bülach.',
+    attributes: attrs(5, 5, 6, 5, 5, 4),
+    skills: { cooking: 4, trapping: 3, fishing: 3 },
+  },
+  {
+    id: 'julia', name: 'Julia', sex: 'f', description: 'Long blonde hair, blue eyes. Tall, slim build.',
+    appearance: { ...base, skin: SKIN.fair, hairColor: HAIR.blonde, hairStyle: 'long', eyeColor: EYES.blue, height: 'tall', build: 'slim', shirtColor: '#2a4a4a', pantsColor: '#2a2a30', shoeColor: '#2a2a2e' },
+    traits: ['independent', 'brave', 'practical'],
+    background: 'Rode at a stable near Eglisau and is at ease around animals.',
+    attributes: attrs(5, 7, 6, 4, 4, 4),
+    skills: { hunting: 4, trapping: 4, survival: 3 },
+  },
+  {
+    id: 'luana', name: 'Luana', sex: 'f', description: 'Black hair in a bob, brown eyes. Average height, athletic build.',
+    appearance: { ...base, skin: SKIN.dark, hairColor: HAIR.black, hairStyle: 'bob', eyeColor: EYES.brown, height: 'average', build: 'athletic', shirtColor: '#8a7a5a', pantsColor: '#34302c' },
+    traits: ['hardworking', 'social', 'compassionate'],
+    background: 'Built treehouses and rafts with older cousins every summer.',
+    attributes: attrs(6, 6, 5, 5, 4, 4),
+    skills: { construction: 5, crafting: 4, fishing: 2 },
+  },
 ];
 
-/** Plausible combinations of skin / hair colour so generation avoids absurd results. */
-export const GIRL_LOOKS: { skin: string; hair: string[]; eyes: string[] }[] = [
-  { skin: SKIN.fair, hair: [HAIR.blonde, HAIR.darkBlonde, HAIR.auburn, HAIR.red, HAIR.lightBrown], eyes: [EYES.blue, EYES.green, EYES.grey] },
-  { skin: SKIN.light, hair: [HAIR.darkBlonde, HAIR.lightBrown, HAIR.brown, HAIR.blonde], eyes: [EYES.blue, EYES.brown, EYES.hazel, EYES.green] },
-  { skin: SKIN.medium, hair: [HAIR.brown, HAIR.darkBrown, HAIR.black], eyes: [EYES.brown, EYES.hazel] },
-  { skin: SKIN.olive, hair: [HAIR.darkBrown, HAIR.black], eyes: [EYES.brown, EYES.hazel] },
-  { skin: SKIN.tan, hair: [HAIR.darkBrown, HAIR.black], eyes: [EYES.brown] },
-  { skin: SKIN.brown, hair: [HAIR.black, HAIR.darkBrown], eyes: [EYES.brown] },
-  { skin: SKIN.dark, hair: [HAIR.black], eyes: [EYES.brown] },
-];
-
-export const GIRL_STYLES: HairStyle[] = ['long', 'ponytail', 'bun', 'bob', 'curly', 'braid', 'long', 'ponytail'];
-
-export const SHIRT_COLORS = ['#7a3a4a', '#3a4a6a', '#5a6a4a', '#8a7a5a', '#4a3a5a', '#2a4a4a', '#9a5a3a', '#c8c0b0', '#3a3a42', '#6a4a3a'];
-export const PANTS_COLORS = ['#2e3a52', '#2a2a30', '#3c4a64', '#4a4238', '#34302c'];
-
-export const BACKGROUNDS = [
-  'Spent summers helping on an uncle\'s farm near Rafz.',
-  'Was a scout leader in the Pfadi for three years.',
-  'Worked weekends in a bakery in Bülach.',
-  'Wanted to study medicine; volunteered with the Samariterverein.',
-  'Plays handball and was the class organiser for every trip.',
-  'Spent a lot of time fishing with a grandfather on the Rhine.',
-  'Grew up in a flat in Glattbrugg; had never slept outdoors before.',
-  'Did an apprenticeship taster week as a carpenter.',
-  'Knows plants from a mother who kept a large garden.',
-  'Climbed and hiked with family in Graubünden most holidays.',
-  'Was the quiet one who always had a book.',
-  'Helped at a family garage after school.',
-  'Cooked for younger siblings most evenings.',
-  'Ran cross-country for the school team.',
-];
+export const CLASS_ROSTER: KnownCharacter[] = [...KNOWN_BOYS, ...KNOWN_GIRLS];
 
 /** Trait pairs that should never be combined. */
 export const TRAIT_CONFLICTS: [TraitId, TraitId][] = [

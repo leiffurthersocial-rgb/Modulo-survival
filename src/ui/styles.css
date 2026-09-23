@@ -703,3 +703,136 @@ h3 {
     bottom: 196px;
   }
 }
+
+/* --- onboarding: first steps checklist, welcome card, how to play --- */
+.first-steps {
+  width: 270px;
+  padding: 6px 10px 8px;
+  font-size: 0.95em;
+}
+.first-steps-head {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 0 4px;
+  color: var(--accent);
+  font-family: var(--head);
+  font-size: 0.9em;
+  border: 0;
+  background: none;
+}
+.first-steps .step {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  color: var(--ink-dim);
+}
+.first-steps .step.done {
+  color: var(--ink-faint);
+  text-decoration: line-through;
+}
+.first-steps .step.next {
+  color: var(--ink);
+}
+.first-steps .box {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 3px;
+  border: 2px solid var(--edge-light);
+  font-size: 11px;
+  line-height: 9px;
+  text-align: center;
+  color: var(--good);
+}
+.first-steps .step.next .box {
+  border-color: var(--accent);
+}
+.first-steps .how {
+  color: var(--ink-dim);
+  font-size: 0.88em;
+  line-height: 1.15;
+  text-decoration: none;
+}
+.welcome-card {
+  width: min(560px, 94vw);
+}
+.welcome-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding: 8px 10px;
+  background: var(--panel-2);
+  border: 2px solid var(--edge);
+}
+.help-panel {
+  width: min(900px, 96vw);
+  max-height: min(680px, 92vh);
+  display: flex;
+  flex-direction: column;
+}
+.help-body {
+  display: flex;
+  gap: 14px;
+  padding: 10px 12px 12px;
+  min-height: 0;
+  flex: 1;
+}
+.help-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: none;
+  width: 190px;
+  overflow-y: auto;
+}
+.help-nav button {
+  text-align: left;
+}
+.help-nav button.on {
+  background: #4a5a2e;
+  border-color: #7a8a48;
+}
+.help-text {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 6px;
+  line-height: 1.25;
+}
+.help-text h3 {
+  margin: 0 0 8px;
+  color: var(--accent);
+}
+.help-text p,
+.help-text li {
+  margin: 0 0 7px;
+}
+.help-text ul,
+.help-text ol {
+  padding-left: 20px;
+  margin: 0 0 8px;
+}
+.help-keys {
+  border-collapse: collapse;
+  margin-bottom: 8px;
+}
+.help-keys td {
+  padding: 3px 8px 3px 0;
+  vertical-align: top;
+}
+.help-keys td:first-child {
+  white-space: nowrap;
+}
+@media (max-width: 700px) {
+  .help-body {
+    flex-direction: column;
+  }
+  .help-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: auto;
+  }
+  .first-steps {
+    width: 210px;
+  }
+}

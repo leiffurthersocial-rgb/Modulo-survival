@@ -16,7 +16,7 @@ const HINTS: HintDef[] = [
   {
     id: 'start',
     test: () => true,
-    text: 'The class made it out of the city. The supply bag beside you holds everything you took. Find water and a place to camp. Move with WASD, interact with E, open the inventory with I.',
+    text: 'Walk up to the supply bag beside you and press E. The First steps list on the right shows what to do next. Press F1 any time for How to play.',
   },
   { id: 'thirsty', test: (g) => g.player.needs.hydration < 45, text: 'You are thirsty. Drink from a bottle in your inventory (I). Stream and pond water can make you sick unless it is boiled or treated.' },
   { id: 'hungry', test: (g) => g.player.needs.satiety < 40, text: 'You are hungry. The rations will not last: forage, fish, hunt and search abandoned buildings.' },

@@ -11,13 +11,15 @@ import { CharacterPanel, GroupPanel } from './panels/PeoplePanels';
 import { CampPanel, DocReader, JournalPanel, MenuPanel } from './panels/InfoPanels';
 import { TouchControls } from './TouchControls';
 import { DebugPanel } from './DebugPanel';
+import { HowToPlay } from './HowToPlay';
+import { WelcomeCard } from './Onboarding';
 import { generateWorld } from '@/gen/world';
 import { listSaves, loadGame, type SlotId } from '@/save/storage';
 import type { GameMode, GameState } from '@/sim/types';
 import { audio } from '@/audio/audio';
 import { log } from '@/core/logger';
 
-type Screen = 'title' | 'new' | 'load' | 'settings' | 'game';
+type Screen = 'title' | 'new' | 'load' | 'settings' | 'help' | 'game';
 
 class ErrorBoundary extends Component<{ children: ReactNode; onReset: () => void }, { error?: Error }> {
   state: { error?: Error } = {};
@@ -87,6 +89,10 @@ function GameUI(props: { session: GameSession; settings: Settings; onSettings: (
         return <JournalPanel session={session} />;
       case 'camp':
         return <CampPanel session={session} />;
+      case 'help':
+        return <HowToPlay inGame onClose={() => session.openPanel(null)} />;
+      case 'welcome':
+        return <WelcomeCard session={session} />;
       case 'menu':
         return <MenuPanel session={session} settings={props.settings} onSettings={props.onSettings} onQuit={props.onQuit} onLoad={props.onLoad} />;
       default:
@@ -99,7 +105,7 @@ function GameUI(props: { session: GameSession; settings: Settings; onSettings: (
       {props.settings.touchControls && !ui.panel && <TouchControls session={session} />}
       {panel && (
         <>
-          {session.paused && <div className="dim" onClick={() => session.openPanel(null)} />}
+          {session.paused && <div className="dim" onClick={() => ui.panel !== 'welcome' && session.openPanel(null)} />}
           <div className="modal-wrap">{panel}</div>
         </>
       )}
@@ -170,7 +176,7 @@ export function App() {
     <ErrorBoundary onReset={quit}>
       {screen === 'title' && (
         <>
-          <TitleScreen hasSave={hasSave} onContinue={() => void continueLatest()} onNew={() => setScreen('new')} onLoad={() => setScreen('load')} onSettings={() => setScreen('settings')} />
+          <TitleScreen hasSave={hasSave} onContinue={() => void continueLatest()} onNew={() => setScreen('new')} onLoad={() => setScreen('load')} onSettings={() => setScreen('settings')} onHelp={() => setScreen('help')} />
           {err && (
             <div className="panel" style={{ position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)', padding: 10 }}>
               <span className="bad">Could not load: {err}</span>
@@ -178,8 +184,15 @@ export function App() {
           )}
         </>
       )}
+      {screen === 'help' && (
+        <div className="screen">
+          <div className="title-screen">
+            <HowToPlay onClose={() => setScreen('title')} />
+          </div>
+        </div>
+      )}
       {screen === 'settings' && <SettingsScreen settings={settings} onChange={changeSettings} onBack={() => setScreen('title')} />}
-      {screen === 'new' && <NewGameScreen onBack={() => setScreen('title')} onStart={start} />}
+      {screen === 'new' && <NewGameScreen onBack={() => setScreen('title')} onStart={start} onHelp={() => setScreen('help')} />}
       {screen === 'load' && (
         <LoadScreen
           onBack={() => setScreen('title')}

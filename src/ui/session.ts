@@ -12,11 +12,12 @@ import { startAction } from '@/sim/actions';
 import { attackAnimal } from '@/sim/wildlife';
 import { daylight } from '@/sim/clock';
 import { addItem } from '@/sim/inventory';
+import { notePlayerDid } from '@/sim/objectives';
 import { saveGame, type SlotId } from '@/save/storage';
 import type { Settings } from './settings';
 import { debugAllowed } from './settings';
 
-export type PanelId = 'inventory' | 'craft' | 'build' | 'map' | 'group' | 'character' | 'journal' | 'camp' | 'menu';
+export type PanelId = 'inventory' | 'craft' | 'build' | 'map' | 'group' | 'character' | 'journal' | 'camp' | 'menu' | 'help' | 'welcome';
 
 export interface Toast {
   id: number;
@@ -97,7 +98,10 @@ export class GameSession {
       }),
       g.bus.on('sound', (s) => audio.play(s.id, Math.hypot(s.x - g.player.x, s.y - g.player.y))),
       g.bus.on('lightning', () => setTimeout(() => audio.play('thunder'), 400 + Math.random() * 1500)),
-      g.bus.on('openContainer', (e) => this.openPanel('inventory', e.id)),
+      g.bus.on('openContainer', (e) => {
+        if (g.state.objects[e.id]?.type === 'supply_bag') notePlayerDid(g, 'openBag');
+        this.openPanel('inventory', e.id);
+      }),
       g.bus.on('openPanel', (p) => this.openPanel(p as PanelId)),
       g.bus.on('readDoc', (d) => {
         this.ui.doc = d;
@@ -171,6 +175,8 @@ export class GameSession {
 
   start(): void {
     this.running = true;
+    // a brand-new world opens with the welcome card
+    if (!this.game.state.hints.includes('welcome')) this.ui.panel = 'welcome';
     this.last = performance.now();
     const loop = (ts: number) => {
       if (!this.running) return;
@@ -186,7 +192,8 @@ export class GameSession {
   }
 
   get paused(): boolean {
-    return this.ui.panel === 'menu' || this.ui.panel === 'map' || !!this.ui.dead || !!this.ui.doc;
+    const p = this.ui.panel;
+    return p === 'menu' || p === 'map' || p === 'help' || p === 'welcome' || !!this.ui.dead || !!this.ui.doc;
   }
 
   private frame(ts: number): void {
@@ -390,6 +397,8 @@ export class GameSession {
   // --- keyboard actions -------------------------------------------------------------
 
   openPanel(p: PanelId | null, container?: number): void {
+    // however the welcome card is closed, it has been seen
+    if (this.ui.panel === 'welcome' && !this.game.state.hints.includes('welcome')) this.game.state.hints.push('welcome');
     this.ui.panel = this.ui.panel === p && container === undefined ? null : p;
     this.ui.container = container;
     this.ui.menu = undefined;
@@ -473,6 +482,9 @@ export class GameSession {
         break;
       case 'light':
         this.toggleLight();
+        break;
+      case 'help':
+        this.openPanel(this.ui.panel === 'help' ? null : 'help');
         break;
       case 'inventory':
       case 'craft':

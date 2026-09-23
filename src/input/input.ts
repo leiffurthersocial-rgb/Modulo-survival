@@ -18,7 +18,8 @@ export type ActionKey =
   | 'menu'
   | 'debug'
   | 'light'
-  | 'camp';
+  | 'camp'
+  | 'help';
 
 export const BINDINGS: Record<string, ActionKey> = {
   KeyE: 'interact',
@@ -40,6 +41,8 @@ export const BINDINGS: Record<string, ActionKey> = {
   F3: 'debug',
   KeyL: 'light',
   KeyP: 'camp',
+  F1: 'help',
+  Slash: 'help',
 };
 
 export const KEY_LABELS: Record<ActionKey, string> = {
@@ -59,6 +62,7 @@ export const KEY_LABELS: Record<ActionKey, string> = {
   debug: 'F3',
   light: 'L',
   camp: 'P',
+  help: 'F1',
 };
 
 export class Input {
@@ -79,7 +83,7 @@ export class Input {
     this.down.add(e.code);
     const a = BINDINGS[e.code];
     if (a && !e.repeat) {
-      if (e.code === 'Tab' || e.code === 'Space') e.preventDefault();
+      if (e.code === 'Tab' || e.code === 'Space' || e.code === 'F1') e.preventDefault();
       for (const l of this.listeners) l(a, e);
     }
     if (e.code.startsWith('Arrow')) e.preventDefault();

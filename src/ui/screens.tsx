@@ -42,7 +42,7 @@ function ForestBanner() {
   return <div ref={ref} style={{ width: 'min(900px, 92vw)', opacity: 0.9 }} />;
 }
 
-export function TitleScreen(props: { onNew: () => void; onContinue?: () => void; onLoad: () => void; onSettings: () => void; hasSave: boolean }) {
+export function TitleScreen(props: { onNew: () => void; onContinue?: () => void; onLoad: () => void; onSettings: () => void; onHelp: () => void; hasSave: boolean }) {
   return (
     <div className="screen">
       <div className="title-screen">
@@ -63,6 +63,7 @@ export function TitleScreen(props: { onNew: () => void; onContinue?: () => void;
           <button className={props.hasSave ? '' : 'primary'} onClick={props.onNew}>
             New Game
           </button>
+          <button onClick={props.onHelp}>How to play</button>
           <button onClick={props.onLoad}>Load Game</button>
           <button onClick={props.onSettings}>Settings</button>
         </div>
@@ -197,11 +198,11 @@ function CharacterDetail({ c }: { c: Character }) {
   );
 }
 
-export function NewGameScreen(props: { onBack: () => void; onStart: (seed: number, mode: GameMode, playerId: string, name: string) => void }) {
+export function NewGameScreen(props: { onBack: () => void; onHelp: () => void; onStart: (seed: number, mode: GameMode, playerId: string, name: string) => void }) {
   const [seed, setSeed] = useState(randomSeed);
   const [mode, setMode] = useState<GameMode>('normal');
   const roster = useMemo(() => generateRoster(seed, mode), [seed, mode]);
-  const [sel, setSel] = useState<string>('');
+  const [sel, setSel] = useState<string>('robin');
   const [busy, setBusy] = useState(false);
   const chosen = roster.find((c) => c.id === sel);
   return (
@@ -211,12 +212,13 @@ export function NewGameScreen(props: { onBack: () => void; onStart: (seed: numbe
           <h1 style={{ color: 'var(--accent)' }}>Choose who you are</h1>
           <div className="row" style={{ flexWrap: 'wrap' }}>
             <span className="muted">World seed</span>
-            <input type="number" value={seed} onChange={(e) => (setSeed(Number(e.target.value) || 0), setSel(''))} style={{ width: 140 }} />
-            <button onClick={() => (setSeed(randomSeed()), setSel(''))}>New world</button>
+            <input type="number" value={seed} onChange={(e) => setSeed(Number(e.target.value) || 0)} style={{ width: 140 }} />
+            <button onClick={() => setSeed(randomSeed())}>New world</button>
             <select value={mode} onChange={(e) => setMode(e.target.value as GameMode)}>
               <option value="normal">Normal</option>
               <option value="hardcore">Hardcore</option>
             </select>
+            <button onClick={props.onHelp}>How to play</button>
             <button onClick={props.onBack}>Back</button>
           </div>
         </div>
@@ -224,7 +226,11 @@ export function NewGameScreen(props: { onBack: () => void; onStart: (seed: numbe
           {mode === 'hardcore'
             ? 'Hardcore: harsher needs, worse injuries, scarcer loot and supplies. Death is permanent; you continue as another survivor.'
             : 'Normal: death is permanent for each character, but you can continue as another survivor. Saving is always available.'}{' '}
-          The eight girls in the class are different in every world.
+          Everyone in the class is the same in every world; the seed changes the forest and what people carry.
+        </p>
+        <p style={{ margin: 0 }}>
+          Pick who you want to be. Everyone is good at different things: a scout knows fire and shelter, a cook stretches food, a medic keeps people alive.
+          If you are new, anyone will do; the game walks you through the first day.
         </p>
         <div className="row" style={{ alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
           <div className="char-grid grow" style={{ minWidth: 300 }}>

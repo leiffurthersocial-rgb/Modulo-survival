@@ -28,6 +28,7 @@ import { updateNpc, npcThink, onNpcArrivedHome } from './npc';
 import { updateWildlife } from './wildlife';
 import { updateEcology, updateSpoilage } from './ecology';
 import { checkHints } from './hints';
+import { checkObjectives, notePlayerDid } from './objectives';
 import { finalizeTerrainStructure } from './building';
 import { moveAnimals } from './wildlife';
 
@@ -239,6 +240,8 @@ export class Game {
       }
       updateFires(this, step);
       updateWildlife(this, step, true);
+      // the beginner checklist reacts within a game minute
+      if (p?.alive) checkObjectives(this);
     }
     if (this.farAcc >= 5) {
       const step = this.farAcc;
@@ -329,6 +332,7 @@ export class Game {
       c.action = undefined;
       try {
         def.complete(this, c, a);
+        if (this.isPlayer(c)) notePlayerDid(this, a.type);
       } catch (e) {
         log.error('actions', `action ${a.type} failed for ${c.id}`, e);
       }
@@ -537,6 +541,7 @@ export class Game {
       const ql = q > 0.7 ? 'well' : q > 0.45 ? 'poorly' : 'badly';
       this.message(`${reason} (slept ${hours.toFixed(1)} h, ${ql})`, 'info');
       if (hours > 2) this.bus.emit('requestAutosave', { reason: 'sleep' });
+      if (hours > 4) notePlayerDid(this, 'sleep');
     }
   }
 

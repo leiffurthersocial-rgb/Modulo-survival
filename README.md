@@ -50,6 +50,7 @@ caching for hashed assets, and a rewrite so any route falls back to
 | H | Set the Home Pin (the group makes camp there) |
 | L | Hold or put away a flashlight or torch |
 | Esc | Pause menu: save, load, export, settings |
+| F1 or ? | How to play |
 
 Touch controls (joystick and buttons) are off by default and can be enabled in
 Settings. Debug tools are only available with `?debug` in the URL (or in dev
@@ -65,10 +66,16 @@ Everything listed here works in the game and affects the simulation.
   spot, an earlier survivors' camp, hunting stands, roads and abandoned cars.
   Trees, plants, containers and buildings persist; felled trees stay stumps and
   slowly regrow.
-- **Characters**: the eight known boys with fixed appearances, plus eight girls
-  generated once per world (names, looks, traits, skills, attributes,
-  backgrounds) and stored in the save. Attributes are normalised to a shared
-  budget so nobody is strictly better.
+- **Characters**: a fixed class of sixteen: the eight known boys and eight
+  girls (Mia, Nora, Seraina, Alina, Livia, Chiara, Julia, Luana). Everyone's
+  looks, traits, skills, attributes and background are the same in every
+  world; the seed only changes the forest and what people carry. Attributes
+  add up to the same budget for everyone, so nobody is strictly better.
+- **Onboarding**: a new world opens with a short welcome card. A First steps
+  checklist on the HUD walks you through the first day (supply bag, water,
+  camp spot, fire, shelter, sleep) and ticks itself off from what happens in
+  the world. A full How to play guide is on the title screen, in the pause
+  menu and on F1 or ?.
 - **Body simulation**: calories (stomach plus longer-term body reserves),
   thirst, sleep pressure and sleep quality, stamina, toilet, hygiene, core body
   temperature (air, wind, rain, wetness, clothing, shelter, fire, activity,
@@ -171,8 +178,8 @@ Key decisions:
 - **Content is data.** Items, recipes, structures, weather, seasons, statuses
   and animals are registries; systems read their properties.
 - **Deterministic generation.** The world seed drives terrain, placement,
-  girls' generation, loot tables and the cause of the collapse. The full state
-  (including generated characters) is stored in the save.
+  starting kits, loot tables and the cause of the collapse. The full state
+  (including every character) is stored in the save.
 - **Robustness.** Each NPC update is isolated so one failing entity is reset
   instead of crashing the world; errors go to the logger and the debug panel.
   Saves are validated on load, and unknown items or weather states degrade

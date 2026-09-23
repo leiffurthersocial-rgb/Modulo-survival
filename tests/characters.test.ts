@@ -1,25 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import { generateRoster, ATTRIBUTE_BUDGET } from '@/gen/characters';
-import { KNOWN_BOYS } from '@/content/characters';
+import { KNOWN_BOYS, KNOWN_GIRLS, TRAIT_CONFLICTS } from '@/content/characters';
 import { ATTR_IDS } from '@/content/skills';
 
 describe('character generation', () => {
-  it('creates exactly sixteen 18-year-old students with the eight known boys', () => {
+  it('creates exactly sixteen 18-year-old students: the eight known boys and eight fixed girls', () => {
     const r = generateRoster(99, 'normal');
     expect(r).toHaveLength(16);
     expect(r.every((c) => c.age === 18)).toBe(true);
-    expect(r.filter((c) => c.fixed).map((c) => c.name)).toEqual(KNOWN_BOYS.map((b) => b.name));
-    expect(r.filter((c) => !c.fixed && c.sex === 'f')).toHaveLength(8);
+    expect(r.filter((c) => c.sex === 'm').map((c) => c.name)).toEqual(KNOWN_BOYS.map((b) => b.name));
+    expect(r.filter((c) => c.sex === 'f').map((c) => c.name)).toEqual(KNOWN_GIRLS.map((g) => g.name));
+    expect(new Set(r.map((c) => c.id)).size).toBe(16);
+    expect(r.map((c) => c.name)).not.toContain('Emma');
+    expect(r.map((c) => c.name)).not.toContain('Lina');
   });
 
-  it('generates the girls deterministically per world seed, differently between worlds', () => {
-    const a = generateRoster(5, 'normal').filter((c) => !c.fixed);
-    const b = generateRoster(5, 'normal').filter((c) => !c.fixed);
-    const c = generateRoster(6, 'normal').filter((c) => !c.fixed);
-    expect(a.map((x) => x.name)).toEqual(b.map((x) => x.name));
-    expect(a.map((x) => x.appearance)).toEqual(b.map((x) => x.appearance));
-    expect(a.map((x) => x.name).join()).not.toEqual(c.map((x) => x.name).join());
-    expect(new Set(a.map((x) => x.name)).size).toBe(8);
+  it('keeps everyone identical across worlds: looks, traits, stats, skills and background', () => {
+    const a = generateRoster(5, 'normal');
+    const b = generateRoster(6, 'hardcore');
+    const pick = (c: (typeof a)[number]) => [c.name, c.appearance, c.traits, c.attributes, c.skills, c.background];
+    expect(a.map(pick)).toEqual(b.map(pick));
   });
 
   it('keeps the fixed appearance of the known boys', () => {
@@ -36,8 +36,11 @@ describe('character generation', () => {
   it('balances attributes so nobody is universally superior', () => {
     for (const c of generateRoster(42, 'normal')) {
       const sum = ATTR_IDS.reduce((s, a) => s + c.attributes[a], 0);
-      expect(Math.abs(sum - ATTRIBUTE_BUDGET)).toBeLessThanOrEqual(4);
+      expect(sum).toBe(ATTRIBUTE_BUDGET);
       expect(c.traits.length).toBe(3);
+      for (const [x, y] of TRAIT_CONFLICTS) expect(c.traits.includes(x) && c.traits.includes(y)).toBe(false);
+      for (const a of ATTR_IDS) expect(c.attributes[a]).toBeGreaterThanOrEqual(2);
+      for (const a of ATTR_IDS) expect(c.attributes[a]).toBeLessThanOrEqual(9);
     }
   });
 });

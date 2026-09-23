@@ -223,13 +223,14 @@ export function MenuPanel(props: { session: GameSession; settings: Settings; onS
           <button className="primary" onClick={() => session.openPanel(null)}>
             Resume
           </button>
+          <button onClick={() => session.openPanel('help')}>How to play</button>
           <button onClick={() => (setTab('save'), refresh())}>Save or load</button>
           <button onClick={doExport}>Export save file</button>
           <button className="danger" onClick={() => void session.save('auto').then(props.onQuit)}>
             Save and quit to title
           </button>
           <p className="faint" style={{ fontSize: '0.85em' }}>
-            Keys: WASD move, Shift sprint, E interact, F strike, I inventory, K craft, B build, M map, G group, P camp, C character, J journal, Z sleep, T toilet, H set Home Pin, L light.
+            Keys: WASD move, Shift sprint, E interact, F strike, I inventory, K craft, B build, M map, G group, P camp, C character, J journal, Z sleep, T toilet, H set Home Pin, L light, F1 how to play.
           </p>
         </div>
       )}

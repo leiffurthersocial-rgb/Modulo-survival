@@ -6,6 +6,7 @@ import { WEATHER } from '@/content/weather';
 import { statusById } from '@/content/statuses';
 import { ACTIONS } from '@/sim/actions';
 import { KEY_LABELS } from '@/input/input';
+import { FirstSteps } from './Onboarding';
 import { compassName } from '@/sim/npc';
 import { skillLevel } from '@/sim/actions';
 import { hash3 } from '@/core/rng';
@@ -67,6 +68,7 @@ const TOOLBAR: [string, keyof typeof KEY_LABELS, string][] = [
   ['Camp', 'camp', 'camp'],
   ['Self', 'character', 'character'],
   ['Log', 'journal', 'journal'],
+  ['Help', 'help', 'help'],
 ];
 
 export function Hud({ session }: { session: GameSession }) {
@@ -108,6 +110,7 @@ export function Hud({ session }: { session: GameSession }) {
 
       <div className="hud-right">
         <Compass session={session} />
+        <FirstSteps session={session} />
       </div>
 
       {session.ui.hint && (
